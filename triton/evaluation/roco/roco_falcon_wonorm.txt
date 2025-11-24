@@ -1,0 +1,193 @@
+Starting comprehensive Attacc benchmarks...
+Running comprehensive benchmark with:
+  - 1 tensor configurations
+
+
+Tensor Configuration 1/1: M=16, N=4544
+GPU: NVIDIA A40
+Found 719 IR expressions to benchmark
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+  Saved results for configuration 1/1
+
+All results saved to: ./evaluation/roco/roco_falcon.json
+
+====================================================================================================
+COMPREHENSIVE BENCHMARK REPORT
+====================================================================================================
+
+Configuration 1:
+  Tensor Shape: M=16, N=4544
+  Top 5 kernels:
+    1. IR 2470: 0.2634 ms
+       Expression: (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (store (tensor Q1,K1,V1) (+ (* (l...
+    2. IR 1851: 0.2637 ms
+    3. IR 3531: 0.2638 ms
+    4. IR 2372: 0.2640 ms
+    5. IR 5544: 0.2642 ms
+
+====================================================================================================
+OVERALL BEST KERNELS ACROSS ALL CONFIGURATIONS
+====================================================================================================
+
+1. IR 2470: 0.2634 ms
+   Tensor Config: M=16, N=4544
+   Expression: (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (store (tensor Q1,K1,V1) (+ (* (load (input X) (index...
+
+2. IR 1851: 0.2637 ms
+   Tensor Config: M=16, N=4544
+   Expression: (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (store (tensor Q1,K1,V1) (+ (x 1 (load (tensor Q1,K1,...
+
+3. IR 3531: 0.2638 ms
+   Tensor Config: M=16, N=4544
+   Expression: (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (store (tensor Q1,K1,V1) (+ (* (load (input X) (index...
+
+4. IR 2372: 0.2640 ms
+   Tensor Config: M=16, N=4544
+   Expression: (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (store (tensor Q1,K1,V1) (+ (* (load (input X) (index...
+
+5. IR 5544: 0.2642 ms
+   Tensor Config: M=16, N=4544
+   Expression: (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (store (tensor Q1,K1,V1) (+ (* (load (input X) (index...

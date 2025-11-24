@@ -1,0 +1,5 @@
+(sloop 0 4544 tile_k k
+      (store (tensor O_FF1)
+             (+ (x (load (tensor O_FF1) (index fulltile)) 1)
+                (rsum (sqr (load (input O_FF) (index fulltile (tile k)))) 1))
+             (index fulltile)))

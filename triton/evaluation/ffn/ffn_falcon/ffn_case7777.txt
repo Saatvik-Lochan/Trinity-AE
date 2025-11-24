@@ -1,0 +1,26 @@
+(sloop 0 4544 4544 k
+    (seq
+        (store (tensor O_FF1)
+            (rsum
+                (sqr (load (input O_FF) (index (fulltile) (fulltile))))
+                1
+            )
+            (index (fulltile))
+        )
+        (store (output O_FF_norm)
+            (/
+                (load (input O_FF) (index (fulltile) (fulltile)))
+                (bcast
+                    (sqrt
+                        (/
+                            (load (tensor O_FF1) (index (fulltile)))
+                            4544
+                        )
+                    )
+                    1
+                )
+            )
+            (index (fulltile) (fulltile))
+        )
+    )
+)

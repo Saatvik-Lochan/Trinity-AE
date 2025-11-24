@@ -1,0 +1,251 @@
+Starting comprehensive Attacc benchmarks...
+Running comprehensive benchmark with:
+  - 1 tensor configurations
+
+
+Tensor Configuration 1/1: M=16, N=4096
+GPU: NVIDIA A40
+Found 2288 IR expressions to benchmark
+WARNING: NaN values detected in [8] O2 tensor!
+WARNING: NaN values detected in [9] O2 tensor!
+WARNING: NaN values detected in [10] O2 tensor!
+WARNING: NaN values detected in [11] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [128] O2 tensor!
+WARNING: NaN values detected in [129] O2 tensor!
+WARNING: NaN values detected in [131] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [194] O2 tensor!
+WARNING: NaN values detected in [195] O2 tensor!
+WARNING: NaN values detected in [196] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [198] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [217] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [255] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [337] O2 tensor!
+WARNING: NaN values detected in [390] O2 tensor!
+WARNING: NaN values detected in [391] O2 tensor!
+WARNING: NaN values detected in [399] O2 tensor!
+WARNING: NaN values detected in [400] O2 tensor!
+WARNING: NaN values detected in [401] O2 tensor!
+WARNING: NaN values detected in [402] O2 tensor!
+WARNING: NaN values detected in [403] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [450] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [512] O2 tensor!
+WARNING: NaN values detected in [517] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [586] O2 tensor!
+WARNING: NaN values detected in [587] O2 tensor!
+WARNING: NaN values detected in [588] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [590] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [618] O2 tensor!
+WARNING: NaN values detected in [622] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [649] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [683] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [845] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [890] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [933] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1032] O2 tensor!
+WARNING: NaN values detected in [1036] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1059] O2 tensor!
+WARNING: NaN values detected in [1085] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1186] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1324] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1469] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1576] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1632] O2 tensor!
+WARNING: NaN values detected in [1635] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1702] O2 tensor!
+WARNING: NaN values detected in [1703] O2 tensor!
+WARNING: NaN values detected in [1706] O2 tensor!
+WARNING: NaN values detected in [1707] O2 tensor!
+WARNING: NaN values detected in [1744] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1746] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [1764] O2 tensor!
+WARNING: NaN values detected in [1765] O2 tensor!
+WARNING: NaN values detected in [1766] O2 tensor!
+WARNING: NaN values detected in [1767] O2 tensor!
+WARNING: NaN values detected in [1769] O2 tensor!
+WARNING: NaN values detected in [1775] O2 tensor!
+WARNING: NaN values detected in [1919] O2 tensor!
+WARNING: NaN values detected in [1958] O2 tensor!
+WARNING: NaN values detected in [1959] O2 tensor!
+WARNING: NaN values detected in [1960] O2 tensor!
+WARNING: NaN values detected in [1961] O2 tensor!
+WARNING: NaN values detected in [1962] O2 tensor!
+WARNING: NaN values detected in [1963] O2 tensor!
+WARNING: NaN values detected in [1976] O2 tensor!
+WARNING: NaN values detected in [2015] O2 tensor!
+WARNING: NaN values detected in [2053] O2 tensor!
+WARNING: NaN values detected in [2154] O2 tensor!
+WARNING: NaN values detected in [2155] O2 tensor!
+WARNING: NaN values detected in [2206] O2 tensor!
+WARNING: NaN values detected in [2236] O2 tensor!
+WARNING: NaN values detected in [2244] O2 tensor!
+WARNING: NaN values detected in [2245] O2 tensor!
+WARNING: NaN values detected in [2246] O2 tensor!
+WARNING: NaN values detected in [2247] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2349] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2398] O2 tensor!
+WARNING: NaN values detected in [2399] O2 tensor!
+WARNING: NaN values detected in [2400] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2402] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2429] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2462] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2527] O2 tensor!
+WARNING: NaN values detected in [2562] O2 tensor!
+WARNING: NaN values detected in [2563] O2 tensor!
+WARNING: NaN values detected in [2567] O2 tensor!
+WARNING: NaN values detected in [2570] O2 tensor!
+WARNING: NaN values detected in [2573] O2 tensor!
+WARNING: NaN values detected in [2574] O2 tensor!
+WARNING: NaN values detected in [2582] O2 tensor!
+WARNING: NaN values detected in [2604] O2 tensor!
+WARNING: NaN values detected in [2605] O2 tensor!
+WARNING: NaN values detected in [2606] O2 tensor!
+WARNING: NaN values detected in [2607] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2762] O2 tensor!
+WARNING: NaN values detected in [2763] O2 tensor!
+WARNING: NaN values detected in [2764] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2766] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2792] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2813] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [2900] O2 tensor!
+WARNING: NaN values detected in [2930] O2 tensor!
+WARNING: NaN values detected in [2931] O2 tensor!
+WARNING: NaN values detected in [2948] O2 tensor!
+WARNING: NaN values detected in [2951] O2 tensor!
+WARNING: NaN values detected in [2966] O2 tensor!
+WARNING: NaN values detected in [2977] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [3067] O2 tensor!
+WARNING: NaN values detected in [3077] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [3155] O2 tensor!
+WARNING: NaN values detected in [3188] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [3251] O2 tensor!
+WARNING: NaN values detected in [3253] O2 tensor!
+WARNING: NaN values detected in [3264] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [3301] O2 tensor!
+WARNING: NaN values detected in [3302] O2 tensor!
+Error benchmarking kernel: PassManager::run failed
+WARNING: NaN values detected in [3396] O2 tensor!
+WARNING: NaN values detected in [3397] O2 tensor!
+WARNING: NaN values detected in [3398] O2 tensor!
+WARNING: NaN values detected in [3399] O2 tensor!
+WARNING: NaN values detected in [3403] O2 tensor!
+WARNING: NaN values detected in [3465] O2 tensor!
+WARNING: NaN values detected in [3481] O2 tensor!
+WARNING: NaN values detected in [3494] O2 tensor!
+  Saved results for configuration 1/1
+
+All results saved to: ./evaluation/roco/roco_prenorm_llama.json
+
+====================================================================================================
+COMPREHENSIVE BENCHMARK REPORT
+====================================================================================================
+
+Configuration 1:
+  Tensor Shape: M=16, N=4096
+  Top 5 kernels:
+    1. IR 3408: 0.2366 ms
+       Expression: (seq (ploop 0 4096 128 n (sloop 0 4096 tile_k k (store (tensor X2) (+ (rsum (sqr...
+    2. IR 3400: 0.2372 ms
+    3. IR 3416: 0.2372 ms
+    4. IR 618: 0.2374 ms
+    5. IR 438: 0.2382 ms
+
+====================================================================================================
+OVERALL BEST KERNELS ACROSS ALL CONFIGURATIONS
+====================================================================================================
+
+1. IR 3408: 0.2366 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (ploop 0 4096 128 n (sloop 0 4096 tile_k k (store (tensor X2) (+ (rsum (sqr (load (input X) (in...
+
+2. IR 3400: 0.2372 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (ploop 0 4096 128 n (seq (sloop 0 4096 tile_k k (store (tensor X2) (+ (x (load (tensor X2) (ind...
+
+3. IR 3416: 0.2372 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (ploop 0 4096 128 n (sloop 0 4096 tile_k k (store (tensor X2) (+ (rsum (sqr (load (input X) (in...
+
+4. IR 618: 0.2374 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (sloop 0 4096 tile_k k (store (tensor X2) (+ (rsum (sqr (load (input X) (index fulltile (tile k...
+
+5. IR 438: 0.2382 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (sloop 0 4096 tile_k k (store (tensor X2) (+ (x 1 (load (tensor X2) (index fulltile))) (rsum (s...

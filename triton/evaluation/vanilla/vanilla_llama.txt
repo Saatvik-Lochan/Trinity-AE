@@ -1,0 +1,49 @@
+Starting comprehensive Attacc benchmarks...
+Running comprehensive benchmark with:
+  - 1 tensor configurations
+
+
+Tensor Configuration 1/1: M=16, N=4096
+GPU: NVIDIA A40
+Found 1444 IR expressions to benchmark
+  Saved results for configuration 1/1
+
+All results saved to: ./evaluation/vanilla/vanilla_llama.json
+
+====================================================================================================
+COMPREHENSIVE BENCHMARK REPORT
+====================================================================================================
+
+Configuration 1:
+  Tensor Shape: M=16, N=4096
+  Top 5 kernels:
+    1. IR 28142: 0.2070 ms
+       Expression: (seq (ploop 0 4096 128 n (seq (sloop 0 4096 tile_k k (store (tensor Q1,K1,V1) (+...
+    2. IR 25538: 0.2070 ms
+    3. IR 25928: 0.2070 ms
+    4. IR 24218: 0.2071 ms
+    5. IR 24116: 0.2071 ms
+
+====================================================================================================
+OVERALL BEST KERNELS ACROSS ALL CONFIGURATIONS
+====================================================================================================
+
+1. IR 28142: 0.2070 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (ploop 0 4096 128 n (seq (sloop 0 4096 tile_k k (store (tensor Q1,K1,V1) (+ (* (load (input X) ...
+
+2. IR 25538: 0.2070 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (ploop 0 4096 128 n (seq (sloop 0 4096 tile_k k (store (tensor Q1,K1,V1) (+ (* (load (input X) ...
+
+3. IR 25928: 0.2070 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (ploop 0 4096 128 n (seq (sloop 0 4096 tile_k k (store (tensor Q1,K1,V1) (+ (* (load (input X) ...
+
+4. IR 24218: 0.2071 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (ploop 0 4096 128 n (seq (sloop 0 4096 tile_k k (store (tensor Q1,K1,V1) (+ (x (load (tensor Q1...
+
+5. IR 24116: 0.2071 ms
+   Tensor Config: M=16, N=4096
+   Expression: (seq (ploop 0 4096 128 n (seq (sloop 0 4096 tile_k k (store (tensor Q1,K1,V1) (+ (x 1 (load (tensor ...

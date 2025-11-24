@@ -1,0 +1,482 @@
+Starting comprehensive Attacc benchmarks...
+Running comprehensive benchmark with:
+  - 1 tensor configurations
+
+
+Tensor Configuration 1/1: M=16, N=4544
+GPU: NVIDIA A40
+Found 1855 IR expressions to benchmark
+WARNING: NaN values detected in [9] O2 tensor!
+WARNING: NaN values detected in [10] O2 tensor!
+WARNING: NaN values detected in [11] O2 tensor!
+WARNING: NaN values detected in [12] O2 tensor!
+WARNING: NaN values detected in [22] O2 tensor!
+WARNING: NaN values detected in [23] O2 tensor!
+WARNING: NaN values detected in [138] O2 tensor!
+WARNING: NaN values detected in [139] O2 tensor!
+WARNING: NaN values detected in [140] O2 tensor!
+WARNING: NaN values detected in [141] O2 tensor!
+WARNING: NaN values detected in [142] O2 tensor!
+WARNING: NaN values detected in [143] O2 tensor!
+WARNING: NaN values detected in [144] O2 tensor!
+WARNING: NaN values detected in [145] O2 tensor!
+WARNING: NaN values detected in [146] O2 tensor!
+WARNING: NaN values detected in [147] O2 tensor!
+WARNING: NaN values detected in [148] O2 tensor!
+WARNING: NaN values detected in [149] O2 tensor!
+WARNING: NaN values detected in [150] O2 tensor!
+WARNING: NaN values detected in [157] O2 tensor!
+WARNING: NaN values detected in [158] O2 tensor!
+WARNING: NaN values detected in [159] O2 tensor!
+WARNING: NaN values detected in [160] O2 tensor!
+WARNING: NaN values detected in [183] O2 tensor!
+WARNING: NaN values detected in [184] O2 tensor!
+WARNING: NaN values detected in [185] O2 tensor!
+WARNING: NaN values detected in [186] O2 tensor!
+WARNING: NaN values detected in [300] O2 tensor!
+WARNING: NaN values detected in [301] O2 tensor!
+WARNING: NaN values detected in [302] O2 tensor!
+WARNING: NaN values detected in [303] O2 tensor!
+WARNING: NaN values detected in [304] O2 tensor!
+WARNING: NaN values detected in [305] O2 tensor!
+WARNING: NaN values detected in [319] O2 tensor!
+WARNING: NaN values detected in [320] O2 tensor!
+WARNING: NaN values detected in [321] O2 tensor!
+WARNING: NaN values detected in [322] O2 tensor!
+WARNING: NaN values detected in [428] O2 tensor!
+WARNING: NaN values detected in [429] O2 tensor!
+WARNING: NaN values detected in [430] O2 tensor!
+WARNING: NaN values detected in [431] O2 tensor!
+WARNING: NaN values detected in [432] O2 tensor!
+WARNING: NaN values detected in [433] O2 tensor!
+WARNING: NaN values detected in [434] O2 tensor!
+WARNING: NaN values detected in [435] O2 tensor!
+WARNING: NaN values detected in [436] O2 tensor!
+WARNING: NaN values detected in [437] O2 tensor!
+WARNING: NaN values detected in [438] O2 tensor!
+WARNING: NaN values detected in [439] O2 tensor!
+WARNING: NaN values detected in [440] O2 tensor!
+WARNING: NaN values detected in [441] O2 tensor!
+WARNING: NaN values detected in [442] O2 tensor!
+WARNING: NaN values detected in [447] O2 tensor!
+WARNING: NaN values detected in [448] O2 tensor!
+WARNING: NaN values detected in [449] O2 tensor!
+WARNING: NaN values detected in [450] O2 tensor!
+WARNING: NaN values detected in [457] O2 tensor!
+WARNING: NaN values detected in [458] O2 tensor!
+WARNING: NaN values detected in [459] O2 tensor!
+WARNING: NaN values detected in [460] O2 tensor!
+WARNING: NaN values detected in [483] O2 tensor!
+WARNING: NaN values detected in [484] O2 tensor!
+WARNING: NaN values detected in [485] O2 tensor!
+WARNING: NaN values detected in [486] O2 tensor!
+WARNING: NaN values detected in [521] O2 tensor!
+WARNING: NaN values detected in [522] O2 tensor!
+WARNING: NaN values detected in [523] O2 tensor!
+WARNING: NaN values detected in [524] O2 tensor!
+WARNING: NaN values detected in [644] O2 tensor!
+WARNING: NaN values detected in [645] O2 tensor!
+WARNING: NaN values detected in [646] O2 tensor!
+WARNING: NaN values detected in [647] O2 tensor!
+WARNING: NaN values detected in [648] O2 tensor!
+WARNING: NaN values detected in [649] O2 tensor!
+WARNING: NaN values detected in [663] O2 tensor!
+WARNING: NaN values detected in [664] O2 tensor!
+WARNING: NaN values detected in [665] O2 tensor!
+WARNING: NaN values detected in [666] O2 tensor!
+WARNING: NaN values detected in [708] O2 tensor!
+WARNING: NaN values detected in [709] O2 tensor!
+WARNING: NaN values detected in [710] O2 tensor!
+WARNING: NaN values detected in [711] O2 tensor!
+WARNING: NaN values detected in [712] O2 tensor!
+WARNING: NaN values detected in [713] O2 tensor!
+WARNING: NaN values detected in [722] O2 tensor!
+WARNING: NaN values detected in [723] O2 tensor!
+WARNING: NaN values detected in [724] O2 tensor!
+WARNING: NaN values detected in [725] O2 tensor!
+WARNING: NaN values detected in [779] O2 tensor!
+WARNING: NaN values detected in [780] O2 tensor!
+WARNING: NaN values detected in [781] O2 tensor!
+WARNING: NaN values detected in [782] O2 tensor!
+WARNING: NaN values detected in [792] O2 tensor!
+WARNING: NaN values detected in [793] O2 tensor!
+WARNING: NaN values detected in [908] O2 tensor!
+WARNING: NaN values detected in [909] O2 tensor!
+WARNING: NaN values detected in [910] O2 tensor!
+WARNING: NaN values detected in [911] O2 tensor!
+WARNING: NaN values detected in [912] O2 tensor!
+WARNING: NaN values detected in [913] O2 tensor!
+WARNING: NaN values detected in [914] O2 tensor!
+WARNING: NaN values detected in [915] O2 tensor!
+WARNING: NaN values detected in [916] O2 tensor!
+WARNING: NaN values detected in [917] O2 tensor!
+WARNING: NaN values detected in [918] O2 tensor!
+WARNING: NaN values detected in [919] O2 tensor!
+WARNING: NaN values detected in [920] O2 tensor!
+WARNING: NaN values detected in [927] O2 tensor!
+WARNING: NaN values detected in [928] O2 tensor!
+WARNING: NaN values detected in [929] O2 tensor!
+WARNING: NaN values detected in [930] O2 tensor!
+WARNING: NaN values detected in [953] O2 tensor!
+WARNING: NaN values detected in [954] O2 tensor!
+WARNING: NaN values detected in [955] O2 tensor!
+WARNING: NaN values detected in [956] O2 tensor!
+WARNING: NaN values detected in [1070] O2 tensor!
+WARNING: NaN values detected in [1071] O2 tensor!
+WARNING: NaN values detected in [1072] O2 tensor!
+WARNING: NaN values detected in [1073] O2 tensor!
+WARNING: NaN values detected in [1074] O2 tensor!
+WARNING: NaN values detected in [1075] O2 tensor!
+WARNING: NaN values detected in [1089] O2 tensor!
+WARNING: NaN values detected in [1090] O2 tensor!
+WARNING: NaN values detected in [1091] O2 tensor!
+WARNING: NaN values detected in [1092] O2 tensor!
+WARNING: NaN values detected in [2297] O2 tensor!
+WARNING: NaN values detected in [2298] O2 tensor!
+WARNING: NaN values detected in [2299] O2 tensor!
+WARNING: NaN values detected in [2300] O2 tensor!
+WARNING: NaN values detected in [2301] O2 tensor!
+WARNING: NaN values detected in [2302] O2 tensor!
+WARNING: NaN values detected in [2306] O2 tensor!
+WARNING: NaN values detected in [2307] O2 tensor!
+WARNING: NaN values detected in [2308] O2 tensor!
+WARNING: NaN values detected in [2321] O2 tensor!
+WARNING: NaN values detected in [2322] O2 tensor!
+WARNING: NaN values detected in [2323] O2 tensor!
+WARNING: NaN values detected in [2336] O2 tensor!
+WARNING: NaN values detected in [2337] O2 tensor!
+WARNING: NaN values detected in [2338] O2 tensor!
+WARNING: NaN values detected in [2339] O2 tensor!
+WARNING: NaN values detected in [2340] O2 tensor!
+WARNING: NaN values detected in [2341] O2 tensor!
+WARNING: NaN values detected in [2402] O2 tensor!
+WARNING: NaN values detected in [2403] O2 tensor!
+WARNING: NaN values detected in [2404] O2 tensor!
+WARNING: NaN values detected in [2405] O2 tensor!
+WARNING: NaN values detected in [2406] O2 tensor!
+WARNING: NaN values detected in [2407] O2 tensor!
+WARNING: NaN values detected in [2408] O2 tensor!
+WARNING: NaN values detected in [2409] O2 tensor!
+WARNING: NaN values detected in [2410] O2 tensor!
+WARNING: NaN values detected in [2411] O2 tensor!
+WARNING: NaN values detected in [2412] O2 tensor!
+WARNING: NaN values detected in [2413] O2 tensor!
+WARNING: NaN values detected in [2414] O2 tensor!
+WARNING: NaN values detected in [2415] O2 tensor!
+WARNING: NaN values detected in [2416] O2 tensor!
+WARNING: NaN values detected in [2429] O2 tensor!
+WARNING: NaN values detected in [2430] O2 tensor!
+WARNING: NaN values detected in [2431] O2 tensor!
+WARNING: NaN values detected in [2444] O2 tensor!
+WARNING: NaN values detected in [2445] O2 tensor!
+WARNING: NaN values detected in [2446] O2 tensor!
+WARNING: NaN values detected in [2447] O2 tensor!
+WARNING: NaN values detected in [2448] O2 tensor!
+WARNING: NaN values detected in [2449] O2 tensor!
+WARNING: NaN values detected in [2466] O2 tensor!
+WARNING: NaN values detected in [2467] O2 tensor!
+WARNING: NaN values detected in [2468] O2 tensor!
+WARNING: NaN values detected in [2469] O2 tensor!
+WARNING: NaN values detected in [2476] O2 tensor!
+WARNING: NaN values detected in [2477] O2 tensor!
+WARNING: NaN values detected in [2478] O2 tensor!
+WARNING: NaN values detected in [2479] O2 tensor!
+WARNING: NaN values detected in [2502] O2 tensor!
+WARNING: NaN values detected in [2503] O2 tensor!
+WARNING: NaN values detected in [2504] O2 tensor!
+WARNING: NaN values detected in [2505] O2 tensor!
+WARNING: NaN values detected in [2540] O2 tensor!
+WARNING: NaN values detected in [2541] O2 tensor!
+WARNING: NaN values detected in [2542] O2 tensor!
+WARNING: NaN values detected in [2543] O2 tensor!
+WARNING: NaN values detected in [2564] O2 tensor!
+WARNING: NaN values detected in [2565] O2 tensor!
+WARNING: NaN values detected in [2566] O2 tensor!
+WARNING: NaN values detected in [2567] O2 tensor!
+WARNING: NaN values detected in [2574] O2 tensor!
+WARNING: NaN values detected in [2575] O2 tensor!
+WARNING: NaN values detected in [2576] O2 tensor!
+WARNING: NaN values detected in [2577] O2 tensor!
+WARNING: NaN values detected in [2600] O2 tensor!
+WARNING: NaN values detected in [2601] O2 tensor!
+WARNING: NaN values detected in [2602] O2 tensor!
+WARNING: NaN values detected in [2603] O2 tensor!
+WARNING: NaN values detected in [2618] O2 tensor!
+WARNING: NaN values detected in [2619] O2 tensor!
+WARNING: NaN values detected in [2620] O2 tensor!
+WARNING: NaN values detected in [2621] O2 tensor!
+WARNING: NaN values detected in [2630] O2 tensor!
+WARNING: NaN values detected in [2631] O2 tensor!
+WARNING: NaN values detected in [2734] O2 tensor!
+WARNING: NaN values detected in [2735] O2 tensor!
+WARNING: NaN values detected in [2736] O2 tensor!
+WARNING: NaN values detected in [2737] O2 tensor!
+WARNING: NaN values detected in [2738] O2 tensor!
+WARNING: NaN values detected in [2739] O2 tensor!
+WARNING: NaN values detected in [2748] O2 tensor!
+WARNING: NaN values detected in [2749] O2 tensor!
+WARNING: NaN values detected in [2750] O2 tensor!
+WARNING: NaN values detected in [2751] O2 tensor!
+WARNING: NaN values detected in [2846] O2 tensor!
+WARNING: NaN values detected in [2847] O2 tensor!
+WARNING: NaN values detected in [2848] O2 tensor!
+WARNING: NaN values detected in [2849] O2 tensor!
+WARNING: NaN values detected in [2936] O2 tensor!
+WARNING: NaN values detected in [2937] O2 tensor!
+WARNING: NaN values detected in [2938] O2 tensor!
+WARNING: NaN values detected in [2939] O2 tensor!
+WARNING: NaN values detected in [2940] O2 tensor!
+WARNING: NaN values detected in [2941] O2 tensor!
+WARNING: NaN values detected in [2942] O2 tensor!
+WARNING: NaN values detected in [2943] O2 tensor!
+WARNING: NaN values detected in [2944] O2 tensor!
+WARNING: NaN values detected in [2945] O2 tensor!
+WARNING: NaN values detected in [2954] O2 tensor!
+WARNING: NaN values detected in [2955] O2 tensor!
+WARNING: NaN values detected in [2956] O2 tensor!
+WARNING: NaN values detected in [2957] O2 tensor!
+WARNING: NaN values detected in [2986] O2 tensor!
+WARNING: NaN values detected in [2987] O2 tensor!
+WARNING: NaN values detected in [2988] O2 tensor!
+WARNING: NaN values detected in [2989] O2 tensor!
+WARNING: NaN values detected in [3084] O2 tensor!
+WARNING: NaN values detected in [3085] O2 tensor!
+WARNING: NaN values detected in [3086] O2 tensor!
+WARNING: NaN values detected in [3087] O2 tensor!
+WARNING: NaN values detected in [3124] O2 tensor!
+WARNING: NaN values detected in [3125] O2 tensor!
+WARNING: NaN values detected in [3126] O2 tensor!
+WARNING: NaN values detected in [3127] O2 tensor!
+WARNING: NaN values detected in [3162] O2 tensor!
+WARNING: NaN values detected in [3163] O2 tensor!
+WARNING: NaN values detected in [3164] O2 tensor!
+WARNING: NaN values detected in [3165] O2 tensor!
+WARNING: NaN values detected in [3174] O2 tensor!
+WARNING: NaN values detected in [3175] O2 tensor!
+WARNING: NaN values detected in [3176] O2 tensor!
+WARNING: NaN values detected in [3177] O2 tensor!
+WARNING: NaN values detected in [3178] O2 tensor!
+WARNING: NaN values detected in [3179] O2 tensor!
+WARNING: NaN values detected in [3180] O2 tensor!
+WARNING: NaN values detected in [3181] O2 tensor!
+WARNING: NaN values detected in [3190] O2 tensor!
+WARNING: NaN values detected in [3191] O2 tensor!
+WARNING: NaN values detected in [3192] O2 tensor!
+WARNING: NaN values detected in [3193] O2 tensor!
+WARNING: NaN values detected in [3203] O2 tensor!
+WARNING: NaN values detected in [3204] O2 tensor!
+WARNING: NaN values detected in [3205] O2 tensor!
+WARNING: NaN values detected in [3206] O2 tensor!
+WARNING: NaN values detected in [3216] O2 tensor!
+WARNING: NaN values detected in [3217] O2 tensor!
+WARNING: NaN values detected in [3332] O2 tensor!
+WARNING: NaN values detected in [3333] O2 tensor!
+WARNING: NaN values detected in [3334] O2 tensor!
+WARNING: NaN values detected in [3335] O2 tensor!
+WARNING: NaN values detected in [3336] O2 tensor!
+WARNING: NaN values detected in [3337] O2 tensor!
+WARNING: NaN values detected in [3338] O2 tensor!
+WARNING: NaN values detected in [3339] O2 tensor!
+WARNING: NaN values detected in [3340] O2 tensor!
+WARNING: NaN values detected in [3341] O2 tensor!
+WARNING: NaN values detected in [3342] O2 tensor!
+WARNING: NaN values detected in [3343] O2 tensor!
+WARNING: NaN values detected in [3344] O2 tensor!
+WARNING: NaN values detected in [3351] O2 tensor!
+WARNING: NaN values detected in [3352] O2 tensor!
+WARNING: NaN values detected in [3353] O2 tensor!
+WARNING: NaN values detected in [3354] O2 tensor!
+WARNING: NaN values detected in [3377] O2 tensor!
+WARNING: NaN values detected in [3378] O2 tensor!
+WARNING: NaN values detected in [3379] O2 tensor!
+WARNING: NaN values detected in [3380] O2 tensor!
+WARNING: NaN values detected in [3494] O2 tensor!
+WARNING: NaN values detected in [3495] O2 tensor!
+WARNING: NaN values detected in [3496] O2 tensor!
+WARNING: NaN values detected in [3497] O2 tensor!
+WARNING: NaN values detected in [3498] O2 tensor!
+WARNING: NaN values detected in [3499] O2 tensor!
+WARNING: NaN values detected in [3513] O2 tensor!
+WARNING: NaN values detected in [3514] O2 tensor!
+WARNING: NaN values detected in [3515] O2 tensor!
+WARNING: NaN values detected in [3516] O2 tensor!
+WARNING: NaN values detected in [3622] O2 tensor!
+WARNING: NaN values detected in [3623] O2 tensor!
+WARNING: NaN values detected in [3624] O2 tensor!
+WARNING: NaN values detected in [3625] O2 tensor!
+WARNING: NaN values detected in [3626] O2 tensor!
+WARNING: NaN values detected in [3627] O2 tensor!
+WARNING: NaN values detected in [3628] O2 tensor!
+WARNING: NaN values detected in [3629] O2 tensor!
+WARNING: NaN values detected in [3630] O2 tensor!
+WARNING: NaN values detected in [3631] O2 tensor!
+WARNING: NaN values detected in [3632] O2 tensor!
+WARNING: NaN values detected in [3633] O2 tensor!
+WARNING: NaN values detected in [3634] O2 tensor!
+WARNING: NaN values detected in [3635] O2 tensor!
+WARNING: NaN values detected in [3636] O2 tensor!
+WARNING: NaN values detected in [3641] O2 tensor!
+WARNING: NaN values detected in [3642] O2 tensor!
+WARNING: NaN values detected in [3643] O2 tensor!
+WARNING: NaN values detected in [3644] O2 tensor!
+WARNING: NaN values detected in [3651] O2 tensor!
+WARNING: NaN values detected in [3652] O2 tensor!
+WARNING: NaN values detected in [3653] O2 tensor!
+WARNING: NaN values detected in [3654] O2 tensor!
+WARNING: NaN values detected in [3677] O2 tensor!
+WARNING: NaN values detected in [3678] O2 tensor!
+WARNING: NaN values detected in [3679] O2 tensor!
+WARNING: NaN values detected in [3680] O2 tensor!
+WARNING: NaN values detected in [3715] O2 tensor!
+WARNING: NaN values detected in [3716] O2 tensor!
+WARNING: NaN values detected in [3717] O2 tensor!
+WARNING: NaN values detected in [3718] O2 tensor!
+WARNING: NaN values detected in [3838] O2 tensor!
+WARNING: NaN values detected in [3839] O2 tensor!
+WARNING: NaN values detected in [3840] O2 tensor!
+WARNING: NaN values detected in [3841] O2 tensor!
+WARNING: NaN values detected in [3842] O2 tensor!
+WARNING: NaN values detected in [3843] O2 tensor!
+WARNING: NaN values detected in [3857] O2 tensor!
+WARNING: NaN values detected in [3858] O2 tensor!
+WARNING: NaN values detected in [3859] O2 tensor!
+WARNING: NaN values detected in [3860] O2 tensor!
+WARNING: NaN values detected in [3910] O2 tensor!
+WARNING: NaN values detected in [3911] O2 tensor!
+WARNING: NaN values detected in [3912] O2 tensor!
+WARNING: NaN values detected in [3913] O2 tensor!
+WARNING: NaN values detected in [3967] O2 tensor!
+WARNING: NaN values detected in [3968] O2 tensor!
+WARNING: NaN values detected in [3969] O2 tensor!
+WARNING: NaN values detected in [3970] O2 tensor!
+WARNING: NaN values detected in [3980] O2 tensor!
+WARNING: NaN values detected in [3981] O2 tensor!
+WARNING: NaN values detected in [4007] O2 tensor!
+WARNING: NaN values detected in [4096] O2 tensor!
+WARNING: NaN values detected in [4097] O2 tensor!
+WARNING: NaN values detected in [4098] O2 tensor!
+WARNING: NaN values detected in [4099] O2 tensor!
+WARNING: NaN values detected in [4100] O2 tensor!
+WARNING: NaN values detected in [4101] O2 tensor!
+WARNING: NaN values detected in [4102] O2 tensor!
+WARNING: NaN values detected in [4103] O2 tensor!
+WARNING: NaN values detected in [4104] O2 tensor!
+WARNING: NaN values detected in [4105] O2 tensor!
+WARNING: NaN values detected in [4106] O2 tensor!
+WARNING: NaN values detected in [4107] O2 tensor!
+WARNING: NaN values detected in [4108] O2 tensor!
+WARNING: NaN values detected in [4115] O2 tensor!
+WARNING: NaN values detected in [4116] O2 tensor!
+WARNING: NaN values detected in [4117] O2 tensor!
+WARNING: NaN values detected in [4118] O2 tensor!
+WARNING: NaN values detected in [4141] O2 tensor!
+WARNING: NaN values detected in [4142] O2 tensor!
+WARNING: NaN values detected in [4143] O2 tensor!
+WARNING: NaN values detected in [4144] O2 tensor!
+WARNING: NaN values detected in [4258] O2 tensor!
+WARNING: NaN values detected in [4259] O2 tensor!
+WARNING: NaN values detected in [4260] O2 tensor!
+WARNING: NaN values detected in [4261] O2 tensor!
+WARNING: NaN values detected in [4262] O2 tensor!
+WARNING: NaN values detected in [4263] O2 tensor!
+WARNING: NaN values detected in [4277] O2 tensor!
+WARNING: NaN values detected in [4278] O2 tensor!
+WARNING: NaN values detected in [4279] O2 tensor!
+WARNING: NaN values detected in [4280] O2 tensor!
+WARNING: NaN values detected in [4386] O2 tensor!
+WARNING: NaN values detected in [4387] O2 tensor!
+WARNING: NaN values detected in [4388] O2 tensor!
+WARNING: NaN values detected in [4389] O2 tensor!
+WARNING: NaN values detected in [4390] O2 tensor!
+WARNING: NaN values detected in [4391] O2 tensor!
+WARNING: NaN values detected in [4392] O2 tensor!
+WARNING: NaN values detected in [4393] O2 tensor!
+WARNING: NaN values detected in [4394] O2 tensor!
+WARNING: NaN values detected in [4395] O2 tensor!
+WARNING: NaN values detected in [4396] O2 tensor!
+WARNING: NaN values detected in [4397] O2 tensor!
+WARNING: NaN values detected in [4398] O2 tensor!
+WARNING: NaN values detected in [4399] O2 tensor!
+WARNING: NaN values detected in [4400] O2 tensor!
+WARNING: NaN values detected in [4405] O2 tensor!
+WARNING: NaN values detected in [4406] O2 tensor!
+WARNING: NaN values detected in [4407] O2 tensor!
+WARNING: NaN values detected in [4408] O2 tensor!
+WARNING: NaN values detected in [4415] O2 tensor!
+WARNING: NaN values detected in [4416] O2 tensor!
+WARNING: NaN values detected in [4417] O2 tensor!
+WARNING: NaN values detected in [4418] O2 tensor!
+WARNING: NaN values detected in [4441] O2 tensor!
+WARNING: NaN values detected in [4442] O2 tensor!
+WARNING: NaN values detected in [4443] O2 tensor!
+WARNING: NaN values detected in [4444] O2 tensor!
+WARNING: NaN values detected in [4479] O2 tensor!
+WARNING: NaN values detected in [4480] O2 tensor!
+WARNING: NaN values detected in [4481] O2 tensor!
+WARNING: NaN values detected in [4482] O2 tensor!
+WARNING: NaN values detected in [4602] O2 tensor!
+WARNING: NaN values detected in [4603] O2 tensor!
+WARNING: NaN values detected in [4604] O2 tensor!
+WARNING: NaN values detected in [4605] O2 tensor!
+WARNING: NaN values detected in [4606] O2 tensor!
+WARNING: NaN values detected in [4607] O2 tensor!
+WARNING: NaN values detected in [4621] O2 tensor!
+WARNING: NaN values detected in [4622] O2 tensor!
+WARNING: NaN values detected in [4623] O2 tensor!
+WARNING: NaN values detected in [4624] O2 tensor!
+WARNING: NaN values detected in [4666] O2 tensor!
+WARNING: NaN values detected in [4667] O2 tensor!
+WARNING: NaN values detected in [4668] O2 tensor!
+WARNING: NaN values detected in [5125] O2 tensor!
+WARNING: NaN values detected in [5126] O2 tensor!
+WARNING: NaN values detected in [5127] O2 tensor!
+WARNING: NaN values detected in [5128] O2 tensor!
+WARNING: NaN values detected in [5138] O2 tensor!
+WARNING: NaN values detected in [5139] O2 tensor!
+WARNING: NaN values detected in [5149] O2 tensor!
+WARNING: NaN values detected in [5150] O2 tensor!
+WARNING: NaN values detected in [5151] O2 tensor!
+WARNING: NaN values detected in [5152] O2 tensor!
+WARNING: NaN values detected in [5162] O2 tensor!
+WARNING: NaN values detected in [5163] O2 tensor!
+  Saved results for configuration 1/1
+
+All results saved to: ./evaluation/prenorm/prenorm_falcon.json
+
+====================================================================================================
+COMPREHENSIVE BENCHMARK REPORT
+====================================================================================================
+
+Configuration 1:
+  Tensor Shape: M=16, N=4544
+  Top 5 kernels:
+    1. IR 579: 0.2508 ms
+       Expression: (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (seq (store (tensor X2) (+ (x 1 (...
+    2. IR 1478: 0.2518 ms
+    3. IR 3773: 0.2523 ms
+    4. IR 4537: 0.2524 ms
+    5. IR 2266: 0.2532 ms
+
+====================================================================================================
+OVERALL BEST KERNELS ACROSS ALL CONFIGURATIONS
+====================================================================================================
+
+1. IR 579: 0.2508 ms
+   Tensor Config: M=16, N=4544
+   Expression: (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (seq (store (tensor X2) (+ (x 1 (load (tensor X2) (in...
+
+2. IR 1478: 0.2518 ms
+   Tensor Config: M=16, N=4544
+   Expression: (seq (ploop 0 4544 tile_n n (seq (sloop 0 4544 tile_k k (seq (store (tensor X2) (+ (x 1 (load (tenso...
+
+3. IR 3773: 0.2523 ms
+   Tensor Config: M=16, N=4544
+   Expression: (seq (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (seq (store (tensor X2) (+ (x (load (tensor X2) ...
+
+4. IR 4537: 0.2524 ms
+   Tensor Config: M=16, N=4544
+   Expression: (seq (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (seq (store (tensor X2) (+ (rsum (sqr (load (inp...
+
+5. IR 2266: 0.2532 ms
+   Tensor Config: M=16, N=4544
+   Expression: (seq (ploop 0 4544 64 n (seq (sloop 0 4544 tile_k k (seq (store (tensor X2) (+ (rsum (sqr (load (inp...

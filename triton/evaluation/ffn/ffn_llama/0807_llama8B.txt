@@ -1,0 +1,252 @@
+Starting comprehensive Attacc benchmarks...
+Running comprehensive benchmark with:
+  - 1 tensor configurations
+
+
+Tensor Configuration 1/1: M=16, N=4096, P=14336
+GPU: NVIDIA A40
+Found 839 IR expressions to benchmark
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+  Successfully cleared Triton cache at /home/chani227/.triton/cache
+
+  Cleared Triton cache after 100 cases
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+  Successfully cleared Triton cache at /home/chani227/.triton/cache
+
+  Cleared Triton cache after 200 cases
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+  Successfully cleared Triton cache at /home/chani227/.triton/cache
+
+  Cleared Triton cache after 300 cases
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+  Successfully cleared Triton cache at /home/chani227/.triton/cache
+
+  Cleared Triton cache after 400 cases
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+  Successfully cleared Triton cache at /home/chani227/.triton/cache
+
+  Cleared Triton cache after 500 cases
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+  Successfully cleared Triton cache at /home/chani227/.triton/cache
+
+  Cleared Triton cache after 600 cases
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+  Successfully cleared Triton cache at /home/chani227/.triton/cache
+
+  Cleared Triton cache after 700 cases
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+WARNING: NaN values detected in FF2 tensor!
+  Successfully cleared Triton cache at /home/chani227/.triton/cache
+
+  Cleared Triton cache after 800 cases
+  Saved results for configuration 1/1
+
+All results saved to: ./benchmark_ffn_llama/benchmark_ffn_llama.json
+
+====================================================================================================
+COMPREHENSIVE BENCHMARK REPORT
+====================================================================================================
+
+Configuration 1:
+  Tensor Shape: M=16, N=4096, P=14336
+  Top 5 kernels:
+    1. IR 2221: 0.6486 ms
+       Expression: (seq (ploop 0 4096 tile_n n (seq (sloop 0 4096 tile_k k (store (tensor attn_O1) ...
+    2. IR 708: 0.6505 ms
+    3. IR 2043: 0.6517 ms
+    4. IR 2009: 0.6521 ms
+    5. IR 2128: 0.6524 ms
+
+====================================================================================================
+OVERALL BEST KERNELS ACROSS ALL CONFIGURATIONS
+====================================================================================================
+
+1. IR 2221: 0.6486 ms
+   Tensor Config: M=16, N=4096, P=14336
+   Expression: (seq (ploop 0 4096 tile_n n (seq (sloop 0 4096 tile_k k (store (tensor attn_O1) (+ (* (load (input O...
+
+2. IR 708: 0.6505 ms
+   Tensor Config: M=16, N=4096, P=14336
+   Expression: (seq (ploop 0 4096 tile_n n (sloop 0 4096 tile_k k (store (tensor attn_O1) (+ (* (load (input O2) (i...
+
+3. IR 2043: 0.6517 ms
+   Tensor Config: M=16, N=4096, P=14336
+   Expression: (seq (ploop 0 4096 tile_n n (seq (sloop 0 4096 tile_k k (store (tensor attn_O1) (+ (* (load (input O...
+
+4. IR 2009: 0.6521 ms
+   Tensor Config: M=16, N=4096, P=14336
+   Expression: (seq (ploop 0 4096 tile_n n (seq (sloop 0 4096 tile_k k (store (tensor attn_O1) (+ (* (load (input O...
+
+5. IR 2128: 0.6524 ms
+   Tensor Config: M=16, N=4096, P=14336
+   Expression: (seq (ploop 0 4096 tile_n n (seq (sloop 0 4096 tile_k k (store (tensor attn_O1) (+ (x 1 (load (tenso...
+
+Testing TensorRT...
+
+Testing Simple Attention...
+
+====================================================================================================
+REFERENCE KERNELS TIME
+GPU: NVIDIA A40
+TensorRT execution time: 0.676 ms / iter
+Simple manual attention execution time: 0.713 ms / iter
+====================================================================================================

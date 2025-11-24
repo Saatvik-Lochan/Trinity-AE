@@ -1,0 +1,13 @@
+(ploop 0 4544 tile_n n
+      (seq
+        (sloop 0 4544 tile_k k
+          (store (tensor FF2)
+                 (+ (x 1 (load (tensor FF2) (index fulltile (tile n))))
+                    (* (load (input FF1) (index fulltile (tile k)))
+                       (load (input WFF2) (index (tile k) (tile n)))))
+                 (index fulltile (tile n))))
+
+        (store (output O_FF)
+               (+ (load (input attn_O_norm) (index fulltile (tile n)))
+                  (load (tensor FF2) (index fulltile (tile n))))
+               (index fulltile (tile n)))))
