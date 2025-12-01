@@ -28,7 +28,7 @@ def main():
     output_file = f"./evaluation/{target}/{target}_{model}_benchmark{num}.py"
     module_name = f"{target}_{model}_best"
 
-    output_file = "./evaluation/manual/manual_llama_benchmark1.py"
+    # output_file = "./evaluation/manual/manual_llama_benchmark1.py"
 
     if model == 'falcon':
         M = 16
