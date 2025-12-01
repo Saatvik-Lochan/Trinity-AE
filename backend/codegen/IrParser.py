@@ -1,7 +1,7 @@
 import re
 from typing import List
-from NodeType import NodeType
-from AstNode import ASTNode
+from .NodeType import NodeType
+from .AstNode import ASTNode
 
 class IRParser:
     """Parser for the tile-level IR AST format"""

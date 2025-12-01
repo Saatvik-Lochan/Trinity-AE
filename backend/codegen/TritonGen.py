@@ -1,6 +1,6 @@
 from typing import Dict, Tuple, List
-from NodeType import NodeType
-from AstNode import ASTNode
+from .NodeType import NodeType
+from .AstNode import ASTNode
 
 class TritonCodeGen:
     """Generate Triton code from IR AST"""

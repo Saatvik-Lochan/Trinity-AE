@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Any
-from NodeType import NodeType
+from .NodeType import NodeType
 
 @dataclass
 class ASTNode:

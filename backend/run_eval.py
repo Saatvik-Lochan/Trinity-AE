@@ -1,4 +1,4 @@
-from convert_module import convert_ir_to_triton
+from codegen.convert_module import convert_ir_to_triton
 import argparse, torch, importlib.util, sys
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
