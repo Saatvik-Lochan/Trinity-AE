@@ -31,8 +31,11 @@ def kernel_0(
     attn_O2_stride1: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
+    D: tl.constexpr,
+    H: tl.constexpr,
     M: tl.constexpr,
     N: tl.constexpr,
+    N4: tl.constexpr,
     P: tl.constexpr
 ):
     # Allocate intermediate tensors
@@ -92,8 +95,11 @@ def kernel_1(
     attn_O2_stride1: tl.constexpr,
     BLOCK_P: tl.constexpr,
     BLOCK_K: tl.constexpr,
+    D: tl.constexpr,
+    H: tl.constexpr,
     M: tl.constexpr,
     N: tl.constexpr,
+    N4: tl.constexpr,
     P: tl.constexpr
 ):
     # Allocate intermediate tensors
@@ -111,14 +117,14 @@ def kernel_1(
         k_indices = k + tl.arange(0, BLOCK_K)
         mask_4 = (k_indices < N)[None, :]
         temp_0 = tl.load(attn_O2_ptr + offset_0, mask=mask_4, other=0.0)
-        attn_O3 = (tl.sum((temp_0 * temp_0).to(tl.float16), axis=1, dtype=tl.float16) + (1 * attn_O3).to(tl.float16)).to(tl.float16)
+        attn_O3 = (tl.sum((temp_0 * temp_0).to(tl.float16), axis=1) + (1 * attn_O3).to(tl.float16)).to(tl.float16)
         offset_1 = (k + tl.arange(0, BLOCK_K))[:, None] * WFF1a_stride0 + (p + tl.arange(0, BLOCK_P))[None, :] * WFF1a_stride1
         p_indices = p + tl.arange(0, BLOCK_P)
-        mask_5 = (k_indices < N)[:, None] & (p_indices < P)[None, :]
+        mask_5 = (k_indices < N)[:, None] & (p_indices < N4)[None, :]
         temp_1 = tl.load(WFF1a_ptr + offset_1, mask=mask_5, other=0.0)
         FF1a = (tl.dot(temp_0, temp_1).to(tl.float16) + (1 * FF1a).to(tl.float16)).to(tl.float16)
         offset_2 = (k + tl.arange(0, BLOCK_K))[:, None] * WFF1b_stride0 + (p + tl.arange(0, BLOCK_P))[None, :] * WFF1b_stride1
-        mask_6 = (k_indices < N)[:, None] & (p_indices < P)[None, :]
+        mask_6 = (k_indices < N)[:, None] & (p_indices < N4)[None, :]
         temp_2 = tl.load(WFF1b_ptr + offset_2, mask=mask_6, other=0.0)
         FF1b = ((1 * FF1b).to(tl.float16) + tl.dot(temp_0, temp_2).to(tl.float16)).to(tl.float16)
     # Skipped empty sloop with dummy body
@@ -126,7 +132,7 @@ def kernel_1(
     FF1b = (FF1b / tl.sqrt((attn_O3 / 4096).to(tl.float16).to(tl.float32)).to(tl.float16)[:, None]).to(tl.float16)
     offset_3 = (tl.arange(0, 16))[:, None] * FF1_stride0 + (p + tl.arange(0, BLOCK_P))[None, :] * FF1_stride1
     p_indices = p + tl.arange(0, BLOCK_P)
-    mask_7 = (p_indices < P)[None, :]
+    mask_7 = (p_indices < N4)[None, :]
     tl.store(FF1_ptr + offset_3, ((tl.sigmoid(FF1b.to(tl.float32)).to(tl.float16) * FF1b).to(tl.float16) * FF1a).to(tl.float16), mask=mask_7)
 
 
@@ -157,8 +163,11 @@ def kernel_2(
     WFF2_stride1: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_P: tl.constexpr,
+    D: tl.constexpr,
+    H: tl.constexpr,
     M: tl.constexpr,
     N: tl.constexpr,
+    N4: tl.constexpr,
     P: tl.constexpr
 ):
     # Initialize kernel accumulators
@@ -171,11 +180,11 @@ def kernel_2(
     for p in range(0, 14336, BLOCK_P):
         offset_0 = (tl.arange(0, 16))[:, None] * FF1_stride0 + (p + tl.arange(0, BLOCK_P))[None, :] * FF1_stride1
         p_indices = p + tl.arange(0, BLOCK_P)
-        mask_8 = (p_indices < P)[None, :]
+        mask_8 = (p_indices < N4)[None, :]
         temp_0 = tl.load(FF1_ptr + offset_0, mask=mask_8, other=0.0)
         offset_1 = (p + tl.arange(0, BLOCK_P))[:, None] * WFF2_stride0 + (n + tl.arange(0, BLOCK_N))[None, :] * WFF2_stride1
         n_indices = n + tl.arange(0, BLOCK_N)
-        mask_9 = (p_indices < P)[:, None] & (n_indices < N)[None, :]
+        mask_9 = (p_indices < N4)[:, None] & (n_indices < N)[None, :]
         temp_1 = tl.load(WFF2_ptr + offset_1, mask=mask_9, other=0.0)
         FF2 = (tl.dot(temp_0, temp_1).to(tl.float16) + (FF2 * 1).to(tl.float16)).to(tl.float16)
     # Store kernel accumulators
@@ -209,9 +218,12 @@ def forward(FF1, FF2, O2, WFF1a, WFF1b, WFF2, WO, X, attn_O2, block_k=16, block_
         # BLOCK_K, BLOCK_N are provided by autotune,
         # BLOCK_N is automatically set by autotune,
         # BLOCK_K is automatically set by autotune,
+        D=128,
+        H=32,
         M=16,
         N=4096,
-        P=14336
+        N4=16384,
+        P=1008
     )
 
     kernel_1[lambda meta: ((14336 - 0 + meta["BLOCK_P"] - 1) // meta["BLOCK_P"],)](
@@ -230,9 +242,12 @@ def forward(FF1, FF2, O2, WFF1a, WFF1b, WFF2, WO, X, attn_O2, block_k=16, block_
         # BLOCK_K, BLOCK_P are provided by autotune,
         # BLOCK_P is automatically set by autotune,
         # BLOCK_K is automatically set by autotune,
+        D=128,
+        H=32,
         M=16,
         N=4096,
-        P=14336
+        N4=16384,
+        P=1008
     )
 
     kernel_2[lambda meta: ((4096 - 0 + meta["BLOCK_N"] - 1) // meta["BLOCK_N"],)](
@@ -248,9 +263,12 @@ def forward(FF1, FF2, O2, WFF1a, WFF1b, WFF2, WO, X, attn_O2, block_k=16, block_
         # BLOCK_N, BLOCK_P are provided by autotune,
         # BLOCK_N is automatically set by autotune,
         # BLOCK_P is automatically set by autotune,
+        D=128,
+        H=32,
         M=16,
         N=4096,
-        P=14336
+        N4=16384,
+        P=1008
     )
 
     # Return output tensors if needed

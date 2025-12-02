@@ -1,5 +1,0 @@
-(ploop 0 4544 tile_k k
-      (store (output O_FF_norm)
-             (/ (load (input O_FF) (index fulltile (tile k)))
-                (bcast (sqrt (/ (load (input O_FF1) (index fulltile)) 4544)) 1))
-             (index fulltile (tile k))))

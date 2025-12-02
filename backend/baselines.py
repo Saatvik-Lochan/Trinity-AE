@@ -519,6 +519,32 @@ class NormRoCo(nn.Module):
 
         return output
 
+class FFN(nn.Module):
+    def __init__(self, M, N, N4, WO=None, WFF1a=None, WFF1b=None, WFF2=None):
+        super().__init__()
+        self.M = M
+        self.N = N
+        self.N4 = N4
+        self.WO = WO
+        self.WFF1a = WFF1a
+        self.WFF1b = WFF1b
+        self.WFF2 = WFF2
+    
+    def forward(self, O2, X):
+        attn_O1 = torch.matmul(O2, self.WO)
+        attn_O2 = attn_O1 + X
+        attn_O3 = attn_O2.pow(2).mean(-1, keepdim=True)
+        attn_O_norm = attn_O2 * torch.rsqrt(attn_O3)
+
+        FF1a = torch.matmul(attn_O_norm, self.WFF1a)
+        FF1b = torch.matmul(attn_O_norm, self.WFF1b)
+        FF1b_silu = FF1b * torch.sigmoid(FF1b)
+
+        FF1 = FF1a * FF1b_silu
+        FF2 = torch.matmul(FF1, self.WFF2)
+        
+        return FF2
+
 class SimpleAttention(nn.Module):
     """Simple manual attention implementation for comparison"""
     def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
@@ -574,6 +600,7 @@ class TensorRT_Vanilla(nn.Module):
         self.D = D
         self.H = H
         self.P = P  # Add P for cache length
+        self.output = torch.empty(self.M, self.N, dtype=dtype, device=device)
 
         # self.weight = nn.Parameter(torch.ones(H, dtype=dtype, device=device))
         self.W_q = W_q.to(device=device, dtype=dtype)
@@ -750,14 +777,14 @@ class TensorRT_Vanilla(nn.Module):
         seq_len, H = X.size()
 
         # Prepare output buffer
-        output = torch.empty(seq_len, self.N, dtype=dtype, device=X.device)
+        # output = torch.empty(seq_len, self.N, dtype=dtype, device=X.device)
 
         # Create bindings - pass X directly to TensorRT
         bindings = [
             X.data_ptr(),
             self.cache_K.data_ptr(),
             self.cache_V.data_ptr(),
-            output.data_ptr()
+            self.output.data_ptr()
         ]
 
         # Execute TensorRT engine
@@ -765,7 +792,7 @@ class TensorRT_Vanilla(nn.Module):
         if not success:
             raise RuntimeError("TensorRT execution failed")
         
-        return output
+        return self.output
     
 class TensorRT_Vanilla_GQA(nn.Module):
     def __init__(self, M, N, D, H, N_kv, cache_K, cache_V, P, W_q, W_k, W_v):
@@ -2203,6 +2230,109 @@ class TensorRT_NormRoCo(nn.Module):
             raise RuntimeError("TensorRT execution failed")
         
         return output
+
+class TensorRT_FFN(nn.Module):
+    def __init__(self, M, N, N4, WO=None, WFF1a=None, WFF1b=None, WFF2=None):
+        super().__init__()
+        self.M = M
+        self.N = N
+        self.N4 = N4
+        self.WO = WO
+        self.WFF1a = WFF1a
+        self.WFF1b = WFF1b
+        self.WFF2 = WFF2
+
+        self.output = torch.empty((self.M, self.N), dtype=dtype, device=device)
+
+        self.engine = None
+        self.context = None
+        self.build_engine()
+    
+    def build_engine(self):
+        class TensorOpsModel(nn.Module):
+            def __init__(self, N, WO, WFF1a, WFF1b, WFF2):
+                super().__init__()
+                self.N = N
+                self.WO = WO
+                self.WFF1a = WFF1a
+                self.WFF1b = WFF1b
+                self.WFF2 = WFF2
+            
+            def forward(self, O2, X):
+                attn_O1 = torch.matmul(O2, self.WO)
+                attn_O2 = attn_O1 + X
+                attn_O3 = attn_O2.pow(2).mean(-1, keepdim=True)
+                attn_O_norm = attn_O2 * torch.rsqrt(attn_O3)
+
+                FF1a = torch.matmul(attn_O_norm, self.WFF1a)
+                FF1b = torch.matmul(attn_O_norm, self.WFF1b)
+                FF1b_silu = FF1b * torch.sigmoid(FF1b)
+
+                FF1 = FF1a * FF1b_silu
+                FF2 = torch.matmul(FF1, self.WFF2)
+                
+                return FF2
+        
+        onnx_file = tempfile.NamedTemporaryFile(suffix='.onnx', delete=False)
+        onnx_path = onnx_file.name
+        onnx_file.close()
+
+        try:
+            model = TensorOpsModel(self.N, self.WO, self.WFF1a, self.WFF1b, self.WFF2)
+
+            dummy_O2 = torch.randn(self.M, self.N, dtype=dtype, device=device)
+            dummy_X = torch.randn(self.M, self.N, dtype=dtype, device=device)
+
+            torch.onnx.export(
+                model,
+                (dummy_O2, dummy_X),
+                onnx_path,
+                input_names=['O2','X'],
+                output_names=['FF2'],
+                opset_version=13,
+                do_constant_folding=True,
+            )
+
+            logger = trt.Logger(trt.Logger.WARNING)
+            builder = trt.Builder(logger)
+            network = builder.create_network(
+                1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
+            )
+            parser = trt.OnnxParser(network, logger)
+
+            with open(onnx_path, 'rb') as f:
+                if not parser.parse(f.read()):
+                    raise RuntimeError('Failed to parse ONNX file')
+            
+            config = builder.create_builder_config()
+            config.set_flag(trt.BuilderFlag.FP16)
+            config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 30)
+
+            serialized_engine = builder.build_serialized_network(network, config)
+            if serialized_engine is None: 
+                raise RuntimeError("Failed to build TensorRT engine")
+
+            runtime = trt.Runtime(logger)
+            self.engine = runtime.deserialize_cuda_engine(serialized_engine)
+            if self.engine is None:
+                raise RuntimeError("Failed to deserialize TensorrRT engine")
+            
+            self.context = self.engine.create_execution_context()
+        
+        finally:
+            if os.path.exists(onnx_path):
+                os.remove(onnx_path)
+    
+    def forward(self, O2, X):
+        bindings = [
+            O2.data_ptr(),
+            X.data_ptr(),
+            self.output.data_ptr()
+        ]
+
+        self.context.execute_v2(bindings)
+        return self.output
+
 
 class FlashInfer_Vanilla(nn.Module):
     def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):

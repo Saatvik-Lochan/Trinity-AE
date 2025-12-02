@@ -36,21 +36,7 @@ def main():
         N = 4544
         P = 1024 - M
         H = 71
-        group_size = 4
-
-        constants = {
-            'M': M,
-            'D': D,
-            'N': N,
-            'P': P,
-            'H': H,
-        }
-    elif model == 'llama':
-        M = 16
-        D = 128
-        N = 4096
-        P = 1024 - M
-        H = 32
+        N4 = 4*N
         num_group = 4
 
         constants = {
@@ -59,6 +45,24 @@ def main():
             'N': N,
             'P': P,
             'H': H,
+            'N4': N4,
+        }
+    elif model == 'llama':
+        M = 16
+        D = 128
+        N = 4096
+        P = 1024 - M
+        H = 32
+        N4 = N*4
+        num_group = 4
+
+        constants = {
+            'M': M,
+            'D': D,
+            'N': N,
+            'P': P,
+            'H': H,
+            'N4': N4,
         }
     
     tensor_shapes = {
@@ -104,8 +108,22 @@ def main():
 
         'Q_norm': ('H', 'M', 'D'),
         'K_norm': ('H', 'M', 'D'),
+
+        'WO': ('N', 'N'),
+        'attn_O1': ('M', 'N'),
+        'attn_O2': ('M', 'N'),
+        'attn_O3': ('M'),
+        'attn_O_norm': ('M', 'N'),
+        'WFF1a': ('N', 'N4'),
+        'WFF1b': ('N', 'N4'),
+        'FF1a': ('M', 'N4'),
+        'FF1b': ('M', 'N4'),
+        'FF1b_silu': ('M', 'N4'),
+        'FF1': ('M', 'N4'),
+        'FF2': ('M', 'N'),
+        'WFF2': ('N4', 'N'),
     }
-        
+
     # Set random seed for reproducibility
     torch.manual_seed(42)
     if torch.cuda.is_available():
@@ -148,7 +166,6 @@ def main():
     O = torch.zeros((H, M, D), device=device, dtype=dtype) * std
     O1 = torch.zeros((M, H, D), device=device, dtype=dtype) * std
     O2 = torch.zeros((M, N), device=device, dtype=dtype) * std
-    O2 = torch.zeros((16, N), device=device, dtype=dtype) * std
 
     C = torch.zeros((H, M, P+M), device=device, dtype=dtype) * std
     C_exp = torch.zeros((H, M, P+M), device=device, dtype=dtype) * std
@@ -166,6 +183,25 @@ def main():
 
     Q_norm = torch.zeros((H, M, D), device=device, dtype=dtype) * std
     K_norm = torch.zeros((H, M, D), device=device, dtype=dtype) * std
+
+    std = 0.001
+    if target == "ffn":
+        O2 = O2
+    else:
+        O2 = torch.randn(M, N, dtype=dtype, device=device) * std
+    WO = torch.randn(N, N, dtype=dtype, device=device) * std
+    attn_O1 = torch.zeros(M, N, dtype=dtype, device=device)
+    attn_O2 = torch.zeros(M, N, dtype=dtype, device=device)
+    attn_O3 = torch.zeros(M, dtype=dtype, device=device)
+    attn_O_norm = torch.zeros(M, N, dtype=dtype, device=device)
+    WFF1a = torch.randn(N, N4, dtype=dtype, device=device) * std
+    WFF1b = torch.randn(N, N4, dtype=dtype, device=device) * std
+    FF1a = torch.zeros(M, N4, dtype=dtype, device=device)
+    FF1b = torch.zeros(M, N4, dtype=dtype, device=device)
+    FF1b_silu = torch.zeros(M, N4, dtype=dtype, device=device)
+    FF1 = torch.zeros(M, N4, dtype=dtype, device=device)
+    FF2 = torch.zeros(M, N4, dtype=dtype, device=device)
+    WFF2 = torch.randn(N4, N, dtype=dtype, device=device) * std
 
 
     out = O2.clone()
@@ -201,6 +237,10 @@ def main():
             from baselines import Vanilla_GQA, TensorRT_Vanilla_GQA
             trt = TensorRT_Vanilla_GQA(M, N, D, H, N//num_group, K_cache.clone(), V_cache.clone(), P, WQ, WK_gqa, WV_gqa)
             ti = Vanilla_GQA(M, N, D, P, N//num_group, K_cache.clone(), V_cache.clone(), WQ, WK_gqa, WV_gqa)
+        case "ffn":
+            from baselines import FFN, TensorRT_FFN
+            trt = TensorRT_FFN(M, N, N4, WO=WO, WFF1a=WFF1a, WFF1b=WFF1b, WFF2=WFF2)
+            ti = FFN(M, N, N4, WO=WO, WFF1a=WFF1a, WFF1b=WFF1b, WFF2=WFF2)
 
     # --------------- Trinity ---------------------
     print("="*50)
@@ -235,7 +275,9 @@ def main():
             'O': O, 'O1': O1, 'O2': O2, 'C': C, 'C_exp': C_exp, 'C_div': C_div, 'C_sum': C_sum, 'noise': noise,
             'C_perturb': C_perturb, 'C_exp_perturb': C_exp_perturb, 'C_div_perturb': C_div_perturb, 'C_sum_perturb': C_sum_perturb,
             'C_out': C_out, 'C_out1': C_out1, 'C_out2': C_out2, 'Q_norm': Q_norm, 'K_norm': K_norm,
-            'X_padded': X_padded,
+            'X_padded': X_padded, 'WO': WO, 'attn_O1': attn_O1, 'attn_O2': attn_O2, 'attn_O3': attn_O3,
+            'attn_O_norm': attn_O_norm, 'WFF1a': WFF1a, 'WFF1b': WFF1b, 'FF1a': FF1a, 'FF1b': FF1b, 'FF1b_silu': FF1b_silu,
+            'FF1': FF1, 'FF2': FF2, 'WFF2': WFF2,
         }
         blocks = {
             'block_k': 0, 'block_n': 0, 'block_p': 0
@@ -299,20 +341,25 @@ def main():
         print("="*50)
         print(f"Starting TensorRT {target}...")
 
+        if target == "ffn":
+            inputs = (O2, X)
+        else:
+            inputs = (X,)
+
         trt.half()
         if use_graph:
             print(f"TensorRT with CUDA Graph: 0 ms")
         else:
             with torch.no_grad():
                 for _ in range(10):
-                    out = trt(X)
+                    out = trt(*inputs)
                 torch.cuda.synchronize()
 
                 start_event = torch.cuda.Event(enable_timing=True)
                 end_event = torch.cuda.Event(enable_timing=True)
                 start_event.record()
                 for _ in range(ITER):
-                    _ = trt(X)
+                    _ = trt(*inputs)
                 end_event.record()
                 torch.cuda.synchronize()
 
@@ -327,20 +374,25 @@ def main():
         print("="*50)
         print(f"Starting Pytorch Eager {target}...")
         
+        if target == "ffn":
+            inputs = (O2, X)
+        else:
+            inputs = (X,)
+
         ti = ti.eval()
         if use_graph:
             print(f"Pytorch Eager with CUDA Graph: 0 ms")
         else:
             with torch.no_grad():
                 for _ in range(10):
-                    out = ti(X)
+                    out = ti(*inputs)
                 torch.cuda.synchronize()
 
                 start_event = torch.cuda.Event(enable_timing=True)
                 end_event = torch.cuda.Event(enable_timing=True)
                 start_event.record()
                 for _ in range(ITER):
-                    _ = ti(X)
+                    _ = ti(*inputs)
                 end_event.record()
                 torch.cuda.synchronize()
 
@@ -355,18 +407,23 @@ def main():
         print("="*50)
         print(f"Starting Torch Inductor {target}...")
 
+        if target == "ffn":
+            inputs = (O2, X)
+        else:
+            inputs = (X,)
+
         modes = ["default", "reduce-overhead", "max-autotune", "max-autotune-no-cudagraphs"]
         for mode in modes:
             compiled_model = torch.compile(ti, backend="inductor", mode=mode, fullgraph=True)
             for _ in range(10):
-                out = compiled_model(X)
+                out = compiled_model(*inputs)
             torch.cuda.synchronize()
 
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
             start_event.record()
             for _ in range(ITER):
-                _ = compiled_model(X)
+                _ = compiled_model(*inputs)
             end_event.record()
             torch.cuda.synchronize()
 
