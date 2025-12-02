@@ -24,8 +24,8 @@ def main():
     print_output = args.print_output
     dtype = torch.float16
 
-    case_file = f"./evaluation/{target}/{target}_{model}_case{num}.txt"
-    output_file = f"./evaluation/{target}/{target}_{model}_benchmark{num}.py"
+    case_file = f"./results/{target}/{target}_{model}_case{num}.txt"
+    output_file = f"./results/{target}/{target}_{model}_benchmark{num}.py"
     module_name = f"{target}_{model}_best"
 
     # output_file = "./evaluation/manual/manual_llama_benchmark1.py"
