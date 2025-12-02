@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-# import flashinfer
+import flashinfer
 import math
 import tensorrt as trt
 import tempfile
@@ -2316,21 +2316,31 @@ class FlashInfer_Vanilla(nn.Module):
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
+        self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
 
         self.cache_K = cache_K.to(device)
         self.cache_V = cache_V.to(device)
 
     def forward(self, X):
         # QKV projection
-        q = torch.matmul(X, self.W_q).view(self.M, self.H, self.D)
-        k = torch.matmul(X, self.W_k).view(self.M, self.H, self.D)
-        v = torch.matmul(X, self.W_v).view(self.M, self.H, self.D)
+        # q = torch.matmul(X, self.W_q).view(self.M, self.H, self.D)
+        # k = torch.matmul(X, self.W_k).view(self.M, self.H, self.D)
+        # v = torch.matmul(X, self.W_v).view(self.M, self.H, self.D)
+
+        qkv = torch.matmul(X, self.W_qkv)
+        q, k, v = torch.chunk(qkv, 3, dim=-1)
+    
+        q = q.view(self.M, self.H, self.D)
+        k = k.view(self.M, self.H, self.D)
+        v = v.view(self.M, self.H, self.D)
 
         k = k.transpose(0, 1)
         v = v.transpose(0, 1)
 
-        k_cache = torch.cat([self.cache_K[:, :self.P, :], k], dim=1)
-        v_cache = torch.cat([self.cache_V[:, :self.P, :], v], dim=1)
+        self.cache_K[:, self.P:self.P+self.M, :] = k
+        self.cache_V[:, self.P:self.P+self.M, :] = v
+        k_cache = self.cache_K
+        v_cache = self.cache_V
 
         output = flashinfer.single_prefill_with_kv_cache(
             q=q,
@@ -2340,8 +2350,9 @@ class FlashInfer_Vanilla(nn.Module):
             pos_encoding_mode="NONE",
             sm_scale=1.0
         )
-
-        return output.squeeze(0).view(self.M, self.N)
+        output = output.permute(1, 0, 2)
+        output = output.contiguous().view(self.M, self.H * self.D)
+        return output
 
 class FlashInfer_PreNorm(nn.Module):
     def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
@@ -2355,6 +2366,7 @@ class FlashInfer_PreNorm(nn.Module):
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
+        self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
 
         self.cache_K = cache_K.to(device)
         self.cache_V = cache_V.to(device)
@@ -2363,16 +2375,20 @@ class FlashInfer_PreNorm(nn.Module):
         variance = X.pow(2).mean(-1, keepdim=True)
         X_norm = X * torch.rsqrt(variance)
 
-        q = torch.matmul(X_norm, self.W_q).view(self.M, self.H, self.D)
-        k = torch.matmul(X_norm, self.W_k).view(self.M, self.H, self.D)
-        v = torch.matmul(X_norm, self.W_v).view(self.M, self.H, self.D)
+        qkv = torch.matmul(X_norm, self.W_qkv)
+        q, k, v = torch.chunk(qkv, 3, dim=-1)
+    
+        q = q.view(self.M, self.H, self.D)
+        k = k.view(self.M, self.H, self.D)
+        v = v.view(self.M, self.H, self.D)
 
-        
         k = k.transpose(0, 1)
         v = v.transpose(0, 1)
 
-        k_cache = torch.cat([self.cache_K[:, :self.P, :], k], dim=1)
-        v_cache = torch.cat([self.cache_V[:, :self.P, :], v], dim=1)
+        self.cache_K[:, self.P:self.P+self.M, :] = k
+        self.cache_V[:, self.P:self.P+self.M, :] = v
+        k_cache = self.cache_K
+        v_cache = self.cache_V
 
         output = flashinfer.single_prefill_with_kv_cache(
             q=q,
@@ -2383,7 +2399,9 @@ class FlashInfer_PreNorm(nn.Module):
             sm_scale=1.0
         )
 
-        return output.squeeze(0).view(self.M, self.N)
+        output = output.permute(1, 0, 2)
+        output = output.contiguous().view(self.M, self.H * self.D)
+        return output
 
 class FlashInfer_KeyFormer(nn.Module):
     def __init__(self, M, N, D, P, noise, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
@@ -2399,20 +2417,26 @@ class FlashInfer_KeyFormer(nn.Module):
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
+        self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
 
         self.cache_K = cache_K.to(device)
         self.cache_V = cache_V.to(device)
 
     def forward(self, X):
-        q = torch.matmul(X, self.W_q).view(self.M, self.H, self.D)
-        k = torch.matmul(X, self.W_k).view(self.M, self.H, self.D)
-        v = torch.matmul(X, self.W_v).view(self.M, self.H, self.D)
+        qkv = torch.matmul(X, self.W_qkv)
+        q, k, v = torch.chunk(qkv, 3, dim=-1)
+    
+        q = q.view(self.M, self.H, self.D)
+        k = k.view(self.M, self.H, self.D)
+        v = v.view(self.M, self.H, self.D)
 
         k = k.transpose(0, 1)
         v = v.transpose(0, 1)
 
-        k_cache = torch.cat([self.cache_K[:, :self.P, :], k], dim=1)
-        v_cache = torch.cat([self.cache_V[:, :self.P, :], v], dim=1)
+        self.cache_K[:, self.P:self.P+self.M, :] = k
+        self.cache_V[:, self.P:self.P+self.M, :] = v
+        k_cache = self.cache_K
+        v_cache = self.cache_V
 
         output = flashinfer.single_prefill_with_kv_cache(
             q=q,
@@ -2428,7 +2452,9 @@ class FlashInfer_KeyFormer(nn.Module):
         weights = F.softmax(scores, dim=-1)
         perturb_out = F.softmax(perturb, dim=-1)
 
-        return output.squeeze(0).view(self.M, self.N)
+        output = output.permute(1, 0, 2)
+        output = output.contiguous().view(self.M, self.H * self.D)
+        return output
 
 class FlashInfer_NormKeyFormer(nn.Module):
     def __init__(self, M, N, D, P, noise, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
@@ -2491,15 +2517,18 @@ class FlashInfer_QKNorm(nn.Module):
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
+        self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
 
         self.cache_K = cache_K.to(device)
         self.cache_V = cache_V.to(device)
 
     def forward(self, X):
-        # QKV projection
-        q = torch.matmul(X, self.W_q).view(self.M, self.H, self.D)
-        k = torch.matmul(X, self.W_k).view(self.M, self.H, self.D)
-        v = torch.matmul(X, self.W_v).view(self.M, self.H, self.D)
+        qkv = torch.matmul(X, self.W_qkv)
+        q, k, v = torch.chunk(qkv, 3, dim=-1)
+    
+        q = q.view(self.M, self.H, self.D)
+        k = k.view(self.M, self.H, self.D)
+        v = v.view(self.M, self.H, self.D)
 
         # Transpose all to (H, M, D) for normalization
         q_t = q.transpose(0, 1)
@@ -2515,8 +2544,10 @@ class FlashInfer_QKNorm(nn.Module):
         # Transpose Q back to (M, H, D) for flashinfer
         q_norm = q_norm_t.transpose(0, 1)
 
-        k_cache = torch.cat([self.cache_K[:, :self.P, :], k_norm_t], dim=1)
-        v_cache = torch.cat([self.cache_V[:, :self.P, :], v_t], dim=1)
+        self.cache_K[:, self.P:self.P+self.M, :] = k_norm_t
+        self.cache_V[:, self.P:self.P+self.M, :] = v_t
+        k_cache = self.cache_K
+        v_cache = self.cache_V
 
         output = flashinfer.single_prefill_with_kv_cache(
             q=q_norm,
@@ -2527,7 +2558,9 @@ class FlashInfer_QKNorm(nn.Module):
             sm_scale=1.0  # Important: use 1.0 since Q and K are already normalized
         )
 
-        return output.squeeze(0).view(self.M, self.N)
+        output = output.permute(1, 0, 2)
+        output = output.contiguous().view(self.M, self.H * self.D)
+        return output
 
 class FlashInfer_NormQKNorm(nn.Module):
     def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
@@ -2594,22 +2627,26 @@ class FlashInfer_RoCo(nn.Module):
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
+        self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
 
         self.cache_K = cache_K.to(device)
         self.cache_V = cache_V.to(device)
 
     def forward(self, X):
-        # QKV projection
-        q = torch.matmul(X, self.W_q).view(self.M, self.H, self.D)
-        k = torch.matmul(X, self.W_k).view(self.M, self.H, self.D)
-        v = torch.matmul(X, self.W_v).view(self.M, self.H, self.D)
-
+        qkv = torch.matmul(X, self.W_qkv)
+        q, k, v = torch.chunk(qkv, 3, dim=-1)
+    
+        q = q.view(self.M, self.H, self.D)
+        k = k.view(self.M, self.H, self.D)
+        v = v.view(self.M, self.H, self.D)
         
         k = k.transpose(0, 1)
         v = v.transpose(0, 1)
 
-        k_cache = torch.cat([self.cache_K[:, :self.P, :], k], dim=1)
-        v_cache = torch.cat([self.cache_V[:, :self.P, :], v], dim=1)
+        self.cache_K[:, self.P:self.P+self.M, :] = k
+        self.cache_V[:, self.P:self.P+self.M, :] = v
+        k_cache = self.cache_K
+        v_cache = self.cache_V
 
         output = flashinfer.single_prefill_with_kv_cache(
             q=q,
@@ -2625,7 +2662,9 @@ class FlashInfer_RoCo(nn.Module):
         weights_sum = weights.sum(dim=1)
         weights_sqr_sum = weights.pow(2).sum(dim=1)
 
-        return output.squeeze(0).view(self.M, self.N)
+        output = output.permute(1, 0, 2)
+        output = output.contiguous().view(self.M, self.H * self.D)
+        return output
 
 class FlashInfer_NormRoCo(nn.Module):
     def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):

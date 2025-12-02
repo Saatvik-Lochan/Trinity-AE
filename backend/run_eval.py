@@ -434,7 +434,6 @@ def main():
             print(out)
     
     # ----------------- FlashInfer ---------------------
-    return
     if len(baseline) == 0 or "flashinfer" in baseline:
         print("="*50)
         print(f"Starting FlashInfer {target}...")
