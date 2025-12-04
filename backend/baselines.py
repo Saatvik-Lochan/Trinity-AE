@@ -2334,11 +2334,8 @@ class FlashInfer_Vanilla(nn.Module):
         k = k.view(self.M, self.H, self.D)
         v = v.view(self.M, self.H, self.D)
 
-        k = k.transpose(0, 1)
-        v = v.transpose(0, 1)
-
-        self.cache_K[:, self.P:self.P+self.M, :] = k
-        self.cache_V[:, self.P:self.P+self.M, :] = v
+        self.cache_K[self.P:self.P+self.M, :, :] = k
+        self.cache_V[self.P:self.P+self.M, :, :] = v
         k_cache = self.cache_K
         v_cache = self.cache_V
 
@@ -2346,11 +2343,10 @@ class FlashInfer_Vanilla(nn.Module):
             q=q,
             k=k_cache,
             v=v_cache,
-            kv_layout="HND",
+            kv_layout="NHD",
             pos_encoding_mode="NONE",
             sm_scale=1.0
         )
-        output = output.permute(1, 0, 2)
         output = output.contiguous().view(self.M, self.H * self.D)
         return output
 
@@ -2382,11 +2378,8 @@ class FlashInfer_PreNorm(nn.Module):
         k = k.view(self.M, self.H, self.D)
         v = v.view(self.M, self.H, self.D)
 
-        k = k.transpose(0, 1)
-        v = v.transpose(0, 1)
-
-        self.cache_K[:, self.P:self.P+self.M, :] = k
-        self.cache_V[:, self.P:self.P+self.M, :] = v
+        self.cache_K[self.P:self.P+self.M, :, :] = k
+        self.cache_V[self.P:self.P+self.M, :, :] = v
         k_cache = self.cache_K
         v_cache = self.cache_V
 
@@ -2394,12 +2387,11 @@ class FlashInfer_PreNorm(nn.Module):
             q=q,
             k=k_cache,
             v=v_cache,
-            kv_layout="HND",
+            kv_layout="NHD",
             pos_encoding_mode="NONE",
             sm_scale=1.0
         )
 
-        output = output.permute(1, 0, 2)
         output = output.contiguous().view(self.M, self.H * self.D)
         return output
 
@@ -2530,22 +2522,15 @@ class FlashInfer_QKNorm(nn.Module):
         k = k.view(self.M, self.H, self.D)
         v = v.view(self.M, self.H, self.D)
 
-        # Transpose all to (H, M, D) for normalization
-        q_t = q.transpose(0, 1)
-        k_t = k.transpose(0, 1)
-        v_t = v.transpose(0, 1)
-
         # Normalize Q and K in (H, M, D) format
-        q_var = q_t.pow(2).mean(-1, keepdim=True)
-        k_var = k_t.pow(2).mean(-1, keepdim=True)
-        q_norm_t = q_t * torch.rsqrt(q_var)
-        k_norm_t = k_t * torch.rsqrt(k_var)
+        q_var = q.pow(2).mean(-1, keepdim=True)
+        k_var = k.pow(2).mean(-1, keepdim=True)
+        q_norm = q * torch.rsqrt(q_var)
+        k_norm = k * torch.rsqrt(k_var)
 
         # Transpose Q back to (M, H, D) for flashinfer
-        q_norm = q_norm_t.transpose(0, 1)
-
-        self.cache_K[:, self.P:self.P+self.M, :] = k_norm_t
-        self.cache_V[:, self.P:self.P+self.M, :] = v_t
+        self.cache_K[self.P:self.P+self.M, :, :] = k_norm
+        self.cache_V[self.P:self.P+self.M, :, :] = v
         k_cache = self.cache_K
         v_cache = self.cache_V
 
@@ -2553,12 +2538,11 @@ class FlashInfer_QKNorm(nn.Module):
             q=q_norm,
             k=k_cache,
             v=v_cache,
-            kv_layout="HND",
+            kv_layout="NHD",
             pos_encoding_mode="NONE",
             sm_scale=1.0  # Important: use 1.0 since Q and K are already normalized
         )
 
-        output = output.permute(1, 0, 2)
         output = output.contiguous().view(self.M, self.H * self.D)
         return output
 

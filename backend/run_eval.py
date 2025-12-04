@@ -156,6 +156,9 @@ def main():
     K_cache = torch.randn((H, P+M, D), device=device, dtype=dtype) * std
     V_cache = torch.randn((H, P+M, D), device=device, dtype=dtype) * std
 
+    K_cache_flashinfer = K_cache.clone().transpose(0, 1).contiguous()
+    V_cache_flashinfer = V_cache.clone().transpose(0, 1).contiguous()
+
     K_cache_gqa = torch.randn((H//num_group, P+M, D), device=device, dtype=dtype) * std
     V_cache_gqa = torch.randn((H//num_group, P+M, D), device=device, dtype=dtype) * std
 
@@ -212,35 +215,37 @@ def main():
             from baselines import Vanilla, TensorRT_Vanilla, FlashInfer_Vanilla
             trt = TensorRT_Vanilla(M, N, D, H, K_cache.clone(), V_cache.clone(), P, WQ, WK, WV)
             ti = Vanilla(M, N, D, P, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
-            fi = FlashInfer_Vanilla(M, N, D, P, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
+            fi = FlashInfer_Vanilla(M, N, D, P, K_cache_flashinfer.clone(), V_cache_flashinfer.clone(), WQ, WK, WV)
         case "prenorm":
             from baselines import PreNorm, TensorRT_PreNorm, FlashInfer_PreNorm
             trt = TensorRT_PreNorm(M, N, D, H, K_cache.clone(), V_cache.clone(), P, WQ, WK, WV)
             ti = PreNorm(M, N, D, P, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
-            fi = FlashInfer_PreNorm(M, N, D, P, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
+            fi = FlashInfer_PreNorm(M, N, D, P, K_cache_flashinfer.clone(), V_cache_flashinfer.clone(), WQ, WK, WV)
         case "keyformer":
-            from baselines import KeyFormer, TensorRT_KeyFormer, FlashInfer_KeyFormer
+            from baselines import KeyFormer, TensorRT_KeyFormer
             trt = TensorRT_KeyFormer(M, N, D, H, K_cache.clone(), V_cache.clone(), P, noise, WQ, WK, WV)
             ti = KeyFormer(M, N, D, P, noise, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
-            fi = FlashInfer_KeyFormer(M, N, D, P, noise, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
+            fi = None
         case "qknorm":
             from baselines import QKNorm, TensorRT_QKNorm, FlashInfer_QKNorm
             trt = TensorRT_QKNorm(M, N, D, H, K_cache.clone(), V_cache.clone(), P, WQ, WK, WV)
             ti = QKNorm(M, N, D, P, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
-            fi = FlashInfer_QKNorm(M, N, D, P, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
+            fi = FlashInfer_QKNorm(M, N, D, P, K_cache_flashinfer.clone(), V_cache_flashinfer.clone(), WQ, WK, WV)
         case "roco":
             from baselines import RoCo, TensorRT_RoCo, FlashInfer_RoCo
             trt = TensorRT_RoCo(M, N, D, H, K_cache.clone(), V_cache.clone(), P, WQ, WK, WV)
             ti = RoCo(M, N, D, P, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
-            fi = FlashInfer_RoCo(M, N, D, P, K_cache.clone(), V_cache.clone(), WQ, WK, WV)
+            fi = None
         case "gqa":
             from baselines import Vanilla_GQA, TensorRT_Vanilla_GQA
             trt = TensorRT_Vanilla_GQA(M, N, D, H, N//num_group, K_cache.clone(), V_cache.clone(), P, WQ, WK_gqa, WV_gqa)
             ti = Vanilla_GQA(M, N, D, P, N//num_group, K_cache.clone(), V_cache.clone(), WQ, WK_gqa, WV_gqa)
+            fi = None
         case "ffn":
             from baselines import FFN, TensorRT_FFN
             trt = TensorRT_FFN(M, N, N4, WO=WO, WFF1a=WFF1a, WFF1b=WFF1b, WFF2=WFF2)
             ti = FFN(M, N, N4, WO=WO, WFF1a=WFF1a, WFF1b=WFF1b, WFF2=WFF2)
+            fi = None
 
     # --------------- Trinity ---------------------
     print("="*50)
@@ -434,7 +439,7 @@ def main():
             print(out)
     
     # ----------------- FlashInfer ---------------------
-    if len(baseline) == 0 or "flashinfer" in baseline:
+    if len(baseline) == 0 or "flashinfer" in baseline and not fi is None:
         print("="*50)
         print(f"Starting FlashInfer {target}...")
         
