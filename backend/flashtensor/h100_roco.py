@@ -7,13 +7,18 @@ import triton.language as tl
 from typing import Callable, Any, Optional, Tuple
 
 def bench_roco(model, M, N, P, D, H, device, dtype):
-    x = torch.randn(M, N, dtype=dtype, device=device)
-    wq = torch.randn(N, N, dtype=dtype, device=device)
-    wk = torch.randn(N, N, dtype=dtype, device=device)
-    wv = torch.randn(N, N, dtype=dtype, device=device)
-    wqkv = torch.cat([wq, wk, wv], dim=1).to(device=device, dtype=dtype)
-    k_cache = torch.randn((H, P+M, D), dtype=dtype, device=device)
-    v_cache = torch.randn((H, P+M, D), dtype=dtype, device=device)
+    x = torch.randn(1, M, N, dtype=dtype, device=device)
+    wq = torch.randn(1, N, N, dtype=dtype, device=device)
+    wk = torch.randn(1, N, N, dtype=dtype, device=device)
+    wv = torch.randn(1, N, N, dtype=dtype, device=device)
+    wqkv = torch.cat([wq, wk, wv], dim=2).to(device=device, dtype=dtype)
+    k_cache = torch.randn((1, H, P+M, D), dtype=dtype, device=device)
+    v_cache = torch.randn((1, H, P+M, D), dtype=dtype, device=device)
+
+    empty_ptr_3_p5 = torch.empty(1, H, M, 1, dtype=torch.float32, device=device)
+    empty_ptr_4_p5 = torch.empty(1, M, H, D, dtype=torch.float16, device=device)
+    empty_ptr_3_p4 = torch.empty(1, H, M, dtype=torch.float32, device=device)
+    empty_ptr_4_p4 = torch.empty(1, H, M, dtype=torch.float32, device=device)
 
     if model == "llama":
       attn = RoCo_llama
@@ -21,50 +26,37 @@ def bench_roco(model, M, N, P, D, H, device, dtype):
       attn = RoCo_falcon
 
     for _ in range(10):
-        roco_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn)
+        roco_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn, empty_ptr_3_p5, empty_ptr_4_p5, empty_ptr_3_p4, empty_ptr_4_p4)
     torch.cuda.synchronize()
 
     s = torch.cuda.Event(enable_timing=True)
     e = torch.cuda.Event(enable_timing=True)
 
     s.record()
-    for _ in range(100):
-      roco_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn)
+    for _ in range(1000):
+      roco_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn, empty_ptr_3_p5, empty_ptr_4_p5, empty_ptr_3_p4, empty_ptr_4_p4)
     e.record()
     torch.cuda.synchronize()
 
-    avg = s.elapsed_time(e)/100
+    avg = s.elapsed_time(e)/1000
     # print(avg)
     return avg
 
-def roco_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn):
+def roco_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn, empty_ptr_3_p5, empty_ptr_4_p5, empty_ptr_3_p4, empty_ptr_4_p4):
     qkv = torch.matmul(x, wqkv)
     q, k, v = torch.chunk(qkv, 3, dim=-1)
 
-    q = q.view(M, H, D).transpose(0, 1)
-    k = k.view(M, H, D).transpose(0, 1)
-    v = v.view(M, H, D).transpose(0, 1)
+    q = q.view(1, M, H, D).transpose(1,2)
+    k = k.view(1, M, H, D).transpose(1,2)
+    v = v.view(1, M, H, D).transpose(1,2)
 
-    k_cache[:, P:P+M, :] = k
-    v_cache[:, P:P+M, :] = v
-
-    q.unsqueeze(0)
-    k_cache.unsqueeze(0)
-    v_cache.unsqueeze(0)
+    k_cache[:, :, P:P+M, :] = k
+    v_cache[:, :, P:P+M, :] = v
 
     # RoCo_llama/RoCo_falcon: (q, k, v) 순서로 호출
-    attn(q, k_cache, v_cache)
+    attn(q, k_cache, v_cache, empty_ptr_3_p5, empty_ptr_4_p5, empty_ptr_3_p4, empty_ptr_4_p4)
 
-def bench_RoCo_p5_falcon():
-  dev = torch.cuda.current_device()
-  rand_arg_0 = torch.randn(1, 16, 71, 64, dtype=torch.float16, device=dev)
-  rand_arg_1 = torch.randn(1, 1024, 71, 64, dtype=torch.float16, device=dev)
-  rand_arg_2 = torch.randn(1, 1024, 71, 64, dtype=torch.float16, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: RoCo_p5_falcon(rand_arg_0, rand_arg_1, rand_arg_2))
-  # print('[RoCo_p5] avg_ms:', avg_ms)
-  return avg_ms
-
-def RoCo_p5_falcon(arg0: torch.Tensor, arg1: torch.Tensor, arg2: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+def RoCo_p5_falcon(arg0: torch.Tensor, arg1: torch.Tensor, arg2: torch.Tensor, empty_ptr_3, empty_ptr_4) -> Tuple[torch.Tensor, torch.Tensor]:
   dev = arg0.device
   autotune_key = torch.cuda.get_device_capability(dev)[0]
   tensor_0 = arg0
@@ -178,16 +170,8 @@ def RoCo_p5_kernel_falcon(
   block_store_47 = tl.store(block_ptr_23, zero_28)
   block_store_48 = tl.store(block_ptr_24, converted_46)
 
-def bench_RoCo_p4_falcon():
-  dev = torch.cuda.current_device()
-  rand_arg_0 = torch.randn(1, 16, 71, 64, dtype=torch.float16, device=dev)
-  rand_arg_1 = torch.randn(1, 1024, 71, 64, dtype=torch.float16, device=dev)
-  rand_arg_2 = torch.randn(1, 71, 16, 1, dtype=torch.float32, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: RoCo_p4_falcon(rand_arg_0, rand_arg_1, rand_arg_2))
-  # print('[RoCo_p4] avg_ms:', avg_ms)
-  return avg_ms
 
-def RoCo_p4_falcon(arg0: torch.Tensor, arg1: torch.Tensor, arg2: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+def RoCo_p4_falcon(arg0: torch.Tensor, arg1: torch.Tensor, arg2: torch.Tensor, empty_ptr_3, empty_ptr_4) -> Tuple[torch.Tensor, torch.Tensor]:
   dev = arg0.device
   autotune_key = torch.cuda.get_device_capability(dev)[0]
   tensor_0 = arg0
@@ -300,9 +284,9 @@ def RoCo_p4_kernel_falcon(
   block_store_46 = tl.store(block_ptr_23, zero_27)
   block_store_47 = tl.store(block_ptr_24, zero_28)
 
-def RoCo_falcon(arg_0, arg_1, arg_2):
-  k0_out_0, k0_out_1 = RoCo_p5_falcon(arg_0, arg_2, arg_1)
-  k1_out_0, k1_out_1 = RoCo_p4_falcon(arg_0, arg_1, k0_out_0)
+def RoCo_falcon(arg_0, arg_1, arg_2, empty_ptr_3_p5, empty_ptr_4_p5, empty_ptr_3_p4, empty_ptr_4_p4):
+  k0_out_0, k0_out_1 = RoCo_p5_falcon(arg_0, arg_2, arg_1, empty_ptr_3_p5, empty_ptr_4_p5)
+  k1_out_0, k1_out_1 = RoCo_p4_falcon(arg_0, arg_1, k0_out_0, empty_ptr_3_p4, empty_ptr_4_p4)
   return k0_out_1, k1_out_0, k1_out_1
 
 # def bench_RoCo_falcon():
@@ -320,14 +304,12 @@ def bench_RoCo_p5_llama():
   # print('[RoCo_p5] avg_ms:', avg_ms)
   return avg_ms
 
-def RoCo_p5_llama(arg0: torch.Tensor, arg1: torch.Tensor, arg2: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+def RoCo_p5_llama(arg0: torch.Tensor, arg1: torch.Tensor, arg2: torch.Tensor, empty_ptr_3, empty_ptr_4) -> Tuple[torch.Tensor, torch.Tensor]:
   dev = arg0.device
   autotune_key = torch.cuda.get_device_capability(dev)[0]
   tensor_0 = arg0
   tensor_1 = arg1
   tensor_2 = arg2
-  empty_ptr_3 = torch.empty(1, 32, 16, 1, dtype=torch.float32, device=dev)
-  empty_ptr_4 = torch.empty(1, 16, 32, 128, dtype=torch.float16, device=dev)
   grid = (1, 1, 64)
   RoCo_p5_kernel_llama[grid](tensor_0, tensor_1, tensor_2, empty_ptr_3, empty_ptr_4, autotune_key)
   tensor_5 = empty_ptr_3
@@ -434,23 +416,13 @@ def RoCo_p5_kernel_llama(
   block_store_47 = tl.store(block_ptr_23, zero_28)
   block_store_48 = tl.store(block_ptr_24, converted_46)
 
-def bench_RoCo_p4_llama():
-  dev = torch.cuda.current_device()
-  rand_arg_0 = torch.randn(1, 16, 32, 128, dtype=torch.float16, device=dev)
-  rand_arg_1 = torch.randn(1, 1024, 32, 128, dtype=torch.float16, device=dev)
-  rand_arg_2 = torch.randn(1, 32, 16, 1, dtype=torch.float32, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: RoCo_p4_llama(rand_arg_0, rand_arg_1, rand_arg_2))
-  # print('[RoCo_p4] avg_ms:', avg_ms)
-  return avg_ms
 
-def RoCo_p4_llama(arg0: torch.Tensor, arg1: torch.Tensor, arg2: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+def RoCo_p4_llama(arg0: torch.Tensor, arg1: torch.Tensor, arg2: torch.Tensor, empty_ptr_3, empty_ptr_4) -> Tuple[torch.Tensor, torch.Tensor]:
   dev = arg0.device
   autotune_key = torch.cuda.get_device_capability(dev)[0]
   tensor_0 = arg0
   tensor_1 = arg1
   tensor_2 = arg2
-  empty_ptr_3 = torch.empty(1, 32, 16, dtype=torch.float32, device=dev)
-  empty_ptr_4 = torch.empty(1, 32, 16, dtype=torch.float32, device=dev)
   grid = (1, 1, 64)
   RoCo_p4_kernel_llama[grid](tensor_0, tensor_1, tensor_2, empty_ptr_3, empty_ptr_4, autotune_key)
   tensor_5 = empty_ptr_3
@@ -556,9 +528,9 @@ def RoCo_p4_kernel_llama(
   block_store_46 = tl.store(block_ptr_23, zero_27)
   block_store_47 = tl.store(block_ptr_24, zero_28)
 
-def RoCo_llama(arg_0, arg_1, arg_2):
-  k0_out_0, k0_out_1 = RoCo_p5_llama(arg_0, arg_2, arg_1)
-  k1_out_0, k1_out_1 = RoCo_p4_llama(arg_0, arg_1, k0_out_0)
+def RoCo_llama(arg_0, arg_1, arg_2, empty_ptr_3_p5, empty_ptr_4_p5, empty_ptr_3_p4, empty_ptr_4_p4):
+  k0_out_0, k0_out_1 = RoCo_p5_llama(arg_0, arg_2, arg_1, empty_ptr_3_p5, empty_ptr_4_p5)
+  k1_out_0, k1_out_1 = RoCo_p4_llama(arg_0, arg_1, k0_out_0, empty_ptr_3_p4, empty_ptr_4_p4)
   return k0_out_1, k1_out_0, k1_out_1
 
 # def bench_RoCo_llama():

@@ -7,13 +7,17 @@ import triton.language as tl
 from typing import Callable, Any, Optional, Tuple
 
 def bench_kf(model, M, N, P, D, H, device, dtype):
-    x = torch.randn(M, N, dtype=dtype, device=device)
-    wq = torch.randn(N, N, dtype=dtype, device=device)
-    wk = torch.randn(N, N, dtype=dtype, device=device)
-    wv = torch.randn(N, N, dtype=dtype, device=device)
-    wqkv = torch.cat([wq, wk, wv], dim=1).to(device=device, dtype=dtype)
-    k_cache = torch.randn((H, P+M, D), dtype=dtype, device=device)
-    v_cache = torch.randn((H, P+M, D), dtype=dtype, device=device)
+    x = torch.randn(1, M, N, dtype=dtype, device=device)
+    wq = torch.randn(1, N, N, dtype=dtype, device=device)
+    wk = torch.randn(1, N, N, dtype=dtype, device=device)
+    wv = torch.randn(1, N, N, dtype=dtype, device=device)
+    wqkv = torch.cat([wq, wk, wv], dim=2).to(device=device, dtype=dtype)
+    k_cache = torch.randn((1, H, P+M, D), dtype=dtype, device=device)
+    v_cache = torch.randn((1, H, P+M, D), dtype=dtype, device=device)
+
+    out_p1 = torch.empty((1, H, M, D), dtype=dtype, device=device)
+    out_p9 = torch.empty((1, H, M, 1), dtype=torch.float32, device=device)
+    out_p7 = torch.empty((1, H, M), dtype=torch.float32, device=device)
 
     if model == "llama":
       attn = KeyFormer_llama
@@ -21,75 +25,77 @@ def bench_kf(model, M, N, P, D, H, device, dtype):
       attn = KeyFormer_falcon
 
     for _ in range(10):
-        kf_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn)
+        kf_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn, out_p1, out_p9, out_p7)
     torch.cuda.synchronize()
 
     s = torch.cuda.Event(enable_timing=True)
     e = torch.cuda.Event(enable_timing=True)
 
     s.record()
-    for _ in range(100):
-      kf_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn)
+    for _ in range(1000):
+      kf_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn, out_p1, out_p9, out_p7)
     e.record()
     torch.cuda.synchronize()
 
-    avg = s.elapsed_time(e)/100
+    avg = s.elapsed_time(e)/1000
     return avg
 
-def kf_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn):
+def kf_kernel(x, wqkv, k_cache, v_cache, M, N, P, D, H, attn, out_p1, out_p9, out_p7):
     qkv = torch.matmul(x, wqkv)
     q, k, v = torch.chunk(qkv, 3, dim=-1)
 
-    q = q.view(M, H, D).transpose(0, 1)
-    k = k.view(M, H, D).transpose(0, 1)
-    v = v.view(M, H, D).transpose(0, 1)
+    q = q.view(1, M, H, D).transpose(1,2)
+    k = k.view(1, M, H, D).transpose(1,2)
+    v = v.view(1, M, H, D).transpose(1,2)
 
-    k_cache[:, P:P+M, :] = k
-    v_cache[:, P:P+M, :] = v
-
-    q.unsqueeze(0)
-    k_cache.unsqueeze(0)
-    v_cache.unsqueeze(0)
+    k_cache[:, :, P:P+M, :] = k
+    v_cache[:, :, P:P+M, :] = v
 
     # KeyFormer_llama/KeyFormer_falcon: (q, k, v) 순서로 호출
-    attn(q, k_cache, v_cache)
+    attn(q, k_cache, v_cache, out_p1, out_p9, out_p7)
 
-def KeyFormer_llama(q, k, v):
+def KeyFormer_llama(q, k, v, out_p1, out_p9, out_p7):
     """KeyFormer llama: p1 + p9 + p7 순차 호출"""
-    g = torch.empty(1, 32, 1024, 1024, dtype=torch.float32, device=q.device)  # placeholder
-    out_p1 = KeyFormer_p1_llama(q, v, k)
-    denom_m = KeyFormer_p9_llama(q, k, g)
-    out_p7 = KeyFormer_p7_llama(q, k, g, denom_m)
+    # g = torch.empty(1, 32, 1024, 1024, dtype=torch.float32, device=q.device)  # placeholder
+    g = None
+
+    out_p1 = KeyFormer_p1_llama(q, v, k, out_p1)
+    denom_m = KeyFormer_p9_llama(q, k, g, out_p9)
+    out_p7 = KeyFormer_p7_llama(q, k, g, denom_m, out_p7)
     return out_p1, denom_m, out_p7
 
-def KeyFormer_falcon(q, k, v):
+def KeyFormer_falcon(q, k, v, out_p1, out_p9, out_p7):
     """KeyFormer falcon: p1 + p9 + p7 순차 호출"""
-    g = torch.empty(1, 71, 1024, 1024, dtype=torch.float32, device=q.device)  # placeholder
-    out_p1 = KeyFormer_p1_falcon(q, v, k)
-    denom_m = KeyFormer_p9_falcon(q, k, g)
-    out_p7 = KeyFormer_p7_falcon(q, k, g, denom_m)
+    # g = torch.empty(1, 71, 1024, 1024, dtype=torch.float32, device=q.device)  # placeholder
+    g= None
+    out_p1 = KeyFormer_p1_falcon(q, v, k, out_p1)
+    denom_m = KeyFormer_p9_falcon(q, k, g, out_p9)
+    out_p7 = KeyFormer_p7_falcon(q, k, g, denom_m, out_p7)
     return out_p1, denom_m, out_p7
 
-def bench_KeyFormer_p1_llama():
-  dev = torch.cuda.current_device()
-  # q (1,16,32,128), v/k (1,1024,32,128)
-  q = torch.randn(1, 16, 32, 128, dtype=torch.float16, device=dev)
-  v = torch.randn(1, 1024, 32, 128, dtype=torch.float16, device=dev)
-  k = torch.randn(1, 1024, 32, 128, dtype=torch.float16, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: KeyFormer_p1_llama(q, v, k))
-  # print('[KeyFormer_p1_llama] avg_ms:', avg_ms)
-  return avg_ms
-
-def KeyFormer_p1_llama(q: torch.Tensor, v: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
+def KeyFormer_p1_llama(q: torch.Tensor, v: torch.Tensor, k: torch.Tensor, out) -> torch.Tensor:
   # out: (1,16,32,128)
-  dev = q.device
-  out = torch.empty_like(q)
+  # out = torch.empty_like(q)
   grid = (1, 1, 32)  # (B tiles, M tiles, H heads)
   KeyFormer_p1_kernel_llama[grid](
       q, v, k, out,
       CONST_HD=32*128,  # 4096
-      BLOCK_D=128       # tl.constexpr
+      BLOCK_D=64       # tl.constexpr
   )
+  return out
+
+def KeyFormer_p9_llama(q: torch.Tensor, k: torch.Tensor, g: torch.Tensor, out) -> torch.Tensor:
+  # dev = q.device
+  # out = torch.empty(1, 32, 16, 1, dtype=torch.float32, device=dev)  # (B,H,M,1)
+  grid = (1, 1, 32)  # (B tiles, M tile(1), H)
+  KeyFormer_p9_kernel_llama[grid](q, k, g, out)
+  return out
+
+def KeyFormer_p7_llama(q: torch.Tensor, k: torch.Tensor, g: torch.Tensor, denom_m: torch.Tensor, out) -> torch.Tensor:
+  # dev = q.device
+  # out = torch.empty(1, 32, 16, dtype=torch.float32, device=dev)  # (B,H,M) reduce over N
+  grid = (1, 1, 32)
+  KeyFormer_p7_kernel_llama[grid](q, k, g, denom_m, out)
   return out
 
 @triton.jit
@@ -176,21 +182,6 @@ def KeyFormer_p1_kernel_llama(
   out = (acc_out / acc_denom).to(tl.float16)
   tl.store(block_ptr_out, out)
 
-def bench_KeyFormer_p9_llama():
-  dev = torch.cuda.current_device()
-  q = torch.randn(1, 16, 32, 128, dtype=torch.float16, device=dev)
-  k = torch.randn(1, 1024, 32, 128, dtype=torch.float16, device=dev)
-  g = torch.randn(1, 32, 1024, 1024, dtype=torch.float32, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: KeyFormer_p9_llama(q, k, g))
-  # print('[KeyFormer_p9_llama] avg_ms:', avg_ms)
-  return avg_ms
-
-def KeyFormer_p9_llama(q: torch.Tensor, k: torch.Tensor, g: torch.Tensor) -> torch.Tensor:
-  dev = q.device
-  out = torch.empty(1, 32, 16, 1, dtype=torch.float32, device=dev)  # (B,H,M,1)
-  grid = (1, 1, 32)  # (B tiles, M tile(1), H)
-  KeyFormer_p9_kernel_llama[grid](q, k, g, out)
-  return out
 
 @triton.autotune(configs=[triton.Config({}, num_warps=4), triton.Config({}, num_warps=8)], key=[])
 @triton.jit
@@ -248,22 +239,6 @@ def KeyFormer_p9_kernel_llama(
 
   tl.store(block_ptr_out, acc)
 
-def bench_KeyFormer_p7_llama():
-  dev = torch.cuda.current_device()
-  q = torch.randn(1, 16, 32, 128, dtype=torch.float16, device=dev)
-  k = torch.randn(1, 1024, 32, 128, dtype=torch.float16, device=dev)
-  g = torch.randn(1, 32, 1024, 1024, dtype=torch.float32, device=dev)
-  denom_m = torch.randn(1, 32, 16, 1, dtype=torch.float32, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: KeyFormer_p7_llama(q, k, g, denom_m))
-  # print('[KeyFormer_p7_llama] avg_ms:', avg_ms)
-  return avg_ms
-
-def KeyFormer_p7_llama(q: torch.Tensor, k: torch.Tensor, g: torch.Tensor, denom_m: torch.Tensor) -> torch.Tensor:
-  dev = q.device
-  out = torch.empty(1, 32, 16, dtype=torch.float32, device=dev)  # (B,H,M) reduce over N
-  grid = (1, 1, 32)
-  KeyFormer_p7_kernel_llama[grid](q, k, g, denom_m, out)
-  return out
 
 @triton.autotune(configs=[triton.Config({}, num_warps=4), triton.Config({}, num_warps=8)], key=[])
 @triton.jit
@@ -340,20 +315,10 @@ def KeyFormer_p7_kernel_llama(
 
 #====== falcon ======
 
-def bench_KeyFormer_p1_falcon():
-  dev = torch.cuda.current_device()
-  # q (1,16,71,64), v/k (1,1024,71,64)
-  q = torch.randn(1, 16, 71, 64, dtype=torch.float16, device=dev)
-  v = torch.randn(1, 1024, 71, 64, dtype=torch.float16, device=dev)
-  k = torch.randn(1, 1024, 71, 64, dtype=torch.float16, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: KeyFormer_p1_falcon(q, v, k))
-  # print('[KeyFormer_p1_falcon] avg_ms:', avg_ms)
-  return avg_ms
-
-def KeyFormer_p1_falcon(q: torch.Tensor, v: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
+def KeyFormer_p1_falcon(q: torch.Tensor, v: torch.Tensor, k: torch.Tensor, out) -> torch.Tensor:
   # out: (1,16,71,64)
-  dev = q.device
-  out = torch.empty_like(q)
+  # dev = q.device
+  # out = torch.empty_like(q)
   grid = (1, 1, 71)  # (B tiles, M tiles, H heads)
   # 커널 호출은 대괄호 인덱싱 형태로!
   KeyFormer_p1_kernel_falcon[grid](
@@ -450,18 +415,10 @@ def KeyFormer_p1_kernel_falcon(
   out = (acc_out / acc_denom).to(tl.float16)
   tl.store(block_ptr_out, out)
 
-def bench_KeyFormer_p9_falcon():
-  dev = torch.cuda.current_device()
-  q = torch.randn(1, 16, 71, 64, dtype=torch.float16, device=dev)
-  k = torch.randn(1, 1024, 71, 64, dtype=torch.float16, device=dev)
-  g = torch.randn(1, 71, 1024, 1024, dtype=torch.float32, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: KeyFormer_p9_falcon(q, k, g))
-  # print('[KeyFormer_p9_falcon] avg_ms:', avg_ms)
-  return avg_ms
 
-def KeyFormer_p9_falcon(q: torch.Tensor, k: torch.Tensor, g: torch.Tensor) -> torch.Tensor:
-  dev = q.device
-  out = torch.empty(1, 71, 16, 1, dtype=torch.float32, device=dev)
+def KeyFormer_p9_falcon(q: torch.Tensor, k: torch.Tensor, g: torch.Tensor, out) -> torch.Tensor:
+  # dev = q.device
+  # out = torch.empty(1, 71, 16, 1, dtype=torch.float32, device=dev)
   grid = (1, 1, 71)
   KeyFormer_p9_kernel_falcon[grid](q, k, g, out)
   return out
@@ -528,19 +485,9 @@ def KeyFormer_p9_kernel_falcon(
 
   tl.store(block_ptr_out, acc)
 
-def bench_KeyFormer_p7_falcon():
-  dev = torch.cuda.current_device()
-  q = torch.randn(1, 16, 71, 64, dtype=torch.float16, device=dev)
-  k = torch.randn(1, 1024, 71, 64, dtype=torch.float16, device=dev)
-  g = torch.randn(1, 71, 1024, 1024, dtype=torch.float32, device=dev)
-  denom_m = torch.randn(1, 71, 16, 1, dtype=torch.float32, device=dev)
-  avg_ms = triton.testing.do_bench(lambda: KeyFormer_p7_falcon(q, k, g, denom_m))
-  # print('[KeyFormer_p7_falcon] avg_ms:', avg_ms)
-  return avg_ms
-
-def KeyFormer_p7_falcon(q: torch.Tensor, k: torch.Tensor, g: torch.Tensor, denom_m: torch.Tensor) -> torch.Tensor:
-  dev = q.device
-  out = torch.empty(1, 71, 16, dtype=torch.float32, device=dev)
+def KeyFormer_p7_falcon(q: torch.Tensor, k: torch.Tensor, g: torch.Tensor, denom_m: torch.Tensor, out) -> torch.Tensor:
+  # dev = q.device
+  # out = torch.empty(1, 71, 16, dtype=torch.float32, device=dev)
   grid = (1, 1, 71)
   KeyFormer_p7_kernel_falcon[grid](q, k, g, denom_m, out)
   return out
