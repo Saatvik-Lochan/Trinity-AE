@@ -499,6 +499,162 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
 }
 
 #[test]
+fn prenorm_split_part1() {
+    setup_shape_tracker(vec![
+      ("X", vec![16, 4096]),
+      ("X_norm", vec![16, 4096]),
+      ("X2", vec![16]),
+      ("WQ", vec![4096, 4096]),
+      ("WK", vec![4096, 4096]),
+      ("WV", vec![4096, 4096]),
+      ("Q1", vec![16, 4096]),
+      ("K1", vec![16, 4096]),
+      ("V1", vec![16, 4096]),
+      ("Q2", vec![16, 32, 128]),
+      ("K2", vec![16, 32, 128]),
+      ("V2", vec![16, 32, 128]),
+      ("Q", vec![32, 16, 128]),
+      ("K", vec![32, 16, 128]),
+      ("V", vec![32, 16, 128]),
+      ("K_cache", vec![32, 1024, 128]),
+      ("V_cache", vec![32, 1024, 128]),
+      ("C", vec![32, 16, 1024]),
+      ("C_exp", vec![32, 16, 1024]),
+      ("C_sum", vec![32, 16]),
+      ("C_div", vec![32, 16, 1024]),
+      ("O", vec![32, 16, 128]),
+      ("O1", vec![16, 32, 128]),
+      ("O2", vec![16, 4096]),
+  ]);
+
+    let expr = "
+(seq
+    (loop 0 4096 tile_k k
+        (store (tensor X2)
+            (+
+                (x (load (tensor X2) (index (fulltile))) 1)
+                (rsum
+                    (sqr (load (input X) (index (fulltile) (tile k))))
+                    1
+                )
+            )
+            (index (fulltile))
+        )
+    )
+(seq
+    (loop 0 4096 tile_k k
+        (store (tensor X_norm)
+            (/
+                (load (input X) (index (fulltile) (tile k)))
+                (bcast
+                    (sqrt
+                        (/
+                            (load (tensor X2) (index (fulltile)))
+                            4096
+                        )
+                    )
+                    1
+                )
+            )
+            (index (fulltile) (tile k))
+        )
+    )
+(seq
+    (loop 0 4096 tile_n n
+        (loop 0 4096 tile_k k
+            (store (tensor Q1,K1,V1)
+                (+
+                    (x (load (tensor Q1,K1,V1) (index (fulltile) (tile n))) 1)
+                    (*
+                        (load (tensor X_norm) (index (fulltile) (tile k)))
+                        (load (input WQ,WK,WV) (index (tile k) (tile n)))
+                    )
+                )
+                (index (fulltile) (tile n))
+            )
+        )
+    )
+(seq
+    (loop 0 4096 128 n
+        (store (tensor Q2,K2,V2)
+            (unsqueeze (load (tensor Q1,K1,V1) (index (fulltile) (tile n))) 1)
+            (index (fulltile) (elem n) (fulltile))
+        )
+    )
+(seq
+    (loop 0 32 tile_h h
+        (store (output Q)
+            (permute3
+                (load (tensor Q2) (index (fulltile) (tile h) (fulltile)))
+                1 0 2
+            )
+            (index (tile h) (fulltile) (fulltile))
+        )
+    )
+(seq
+    (loop 0 32 tile_h h
+        (store (tensor K,V)
+            (permute3
+                (load (tensor K2,V2) (index (fulltile) (tile h) (fulltile)))
+                1 0 2
+            )
+            (index (tile h) (fulltile) (fulltile))
+        )
+    )
+    (loop 0 32 tile_h h
+        (store (output K_cache,V_cache)
+            (load (tensor K,V) (index (tile h) (fulltile) (fulltile)))
+            (index (tile h) (const_tile 1008 16) (fulltile))
+        )
+    )
+    ))))))
+    ";
+
+    let mut runner = run_until_saturated(
+        expr,
+        rules(),
+        8,
+    );
+    
+
+    match list_expressions_with_target_cost_v3_part1(&runner, "./expressions/semi/prenorm_split_part1_cost6_kern1.json", 6, 1) {
+        Ok(count) => println!("Saved {} expressions", count),
+        Err(e) => eprintln!("Save error: {}", e),
+    }
+
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "./expressions/semi/prenorm_split_part1_cost6_kern1.json", usize::MAX) {
+        Ok((expressions, tile_sets)) => {
+            println!("Loaded {} final expressions", expressions.len());
+            println!("{:?}", tile_sets);
+            (expressions, tile_sets)
+        },
+        Err(e) => {
+            println!("Load error: {}", e);
+            return;
+        }
+    };
+
+    let file = File::create("./expressions/prenorm_split_part1_cost6_kern1.txt").expect("Failed to create file");
+    let mut writer = BufWriter::new(file);
+    
+    expressions
+    .par_iter()
+    .enumerate()
+    .map(|(i, expr)| {
+        let new_expr = postprocess_v2(expr, &tile_sets);
+        format!("{}: {}", i, new_expr) // String 생성
+    })
+    .filter(|line| !line.contains("dummydata")) // "dummydata" 포함된 건 제외
+    .collect::<Vec<String>>() 
+    .iter()
+    .for_each(|line| {
+        writeln!(writer, "{}", line).expect("Failed to write to file");
+    });
+    
+    writer.flush().expect("Failed to flush writer");
+}
+
+#[test]
 fn count_all() {
     setup_shape_tracker(vec![
       ("X", vec![16, 4096]),
