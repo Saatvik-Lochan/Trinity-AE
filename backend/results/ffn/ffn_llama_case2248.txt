@@ -26,7 +26,7 @@
     )
   ) 
   (seq 
-    (ploop 0 14336 tile_p p 
+    (ploop 0 16384 tile_p p 
       (seq 
         (sloop 0 4096 tile_k k 
           (seq 
@@ -129,7 +129,7 @@
       )
     ) 
     (ploop 0 4096 tile_n n 
-      (sloop 0 14336 tile_p p 
+      (sloop 0 16384 tile_p p 
         (store (output FF2) 
           (+ 
             (* 

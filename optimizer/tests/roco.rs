@@ -44,14 +44,14 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
       ("Q", vec![32, 16, 128]),
       ("K", vec![32, 16, 128]),
       ("V", vec![32, 16, 128]),
-      ("K_cache", vec![32, 1040, 128]),
-      ("V_cache", vec![32, 1040, 128]),
-      ("C", vec![32, 16, 1040]),
-      ("C_exp", vec![32, 16, 1040]),
+      ("K_cache", vec![32, 1024, 128]),
+      ("V_cache", vec![32, 1024, 128]),
+      ("C", vec![32, 16, 1024]),
+      ("C_exp", vec![32, 16, 1024]),
       ("C_sum", vec![32, 16]),
-      ("C_div", vec![32, 16, 1040]),
-      ("C_out1", vec![32, 1040]),
-      ("C_out2", vec![32, 1040]),
+      ("C_div", vec![32, 16, 1024]),
+      ("C_out1", vec![32, 1024]),
+      ("C_out2", vec![32, 1024]),
       
       ("O", vec![32, 16, 128]),
       ("O1", vec![16, 32, 128]),
@@ -95,12 +95,12 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     (loop 0 32 tile_h h
         (store (input K_cache,V_cache)
             (load (tensor K,V) (index (tile h) (fulltile) (fulltile)))
-            (index (tile h) (const_tile 1024 16) (fulltile))
+            (index (tile h) (const_tile 1008 16) (fulltile))
         )
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C)
                 (*
                     (load (tensor Q) (index (tile h) (fulltile) (fulltile)))
@@ -115,7 +115,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_exp)
                 (exp (load (tensor C) (index (tile h) (fulltile) (tile p))))
                 (index (tile h) (fulltile) (tile p))
@@ -124,7 +124,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_sum)
                 (+
                     (x (load (tensor C_sum) (index (tile h) (fulltile))) 1)
@@ -139,7 +139,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_div)
                 (/
                     (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
@@ -154,7 +154,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor O)
                 (+
                     (x (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
@@ -169,7 +169,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (seq
                 (store (output C_out1)
                     (rsum
@@ -216,12 +216,12 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
         8,
     );
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_llama_cost6_kern2.json", 6, 2) {
+    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_llama_cost6_kern1.json", 6, 1) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_llama_cost6_kern2.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_llama_cost6_kern1.json", usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -233,7 +233,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/roco_llama_cost6_kern2.txt").expect("Failed to create file");
+    let file = File::create("/home/jhpark676/Project/trinity/expressions/roco_llama_cost6_kern1.txt").expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions
@@ -270,14 +270,14 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
       ("Q", vec![71, 16, 64]),
       ("K", vec![71, 16, 64]),
       ("V", vec![71, 16, 64]),
-      ("K_cache", vec![71, 1040, 64]),
-      ("V_cache", vec![71, 1040, 64]),
-      ("C", vec![71, 16, 1040]),
-      ("C_exp", vec![71, 16, 1040]),
+      ("K_cache", vec![71, 1024, 64]),
+      ("V_cache", vec![71, 1024, 64]),
+      ("C", vec![71, 16, 1024]),
+      ("C_exp", vec![71, 16, 1024]),
       ("C_sum", vec![71, 16]),
-      ("C_div", vec![71, 16, 1040]),
-      ("C_out1", vec![71, 1040]),
-      ("C_out2", vec![71, 1040]),
+      ("C_div", vec![71, 16, 1024]),
+      ("C_out1", vec![71, 1024]),
+      ("C_out2", vec![71, 1024]),
       
       ("O", vec![71, 16, 64]),
       ("O1", vec![16, 71, 64]),
@@ -321,12 +321,12 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
     (loop 0 71 tile_h h
         (store (input K_cache,V_cache)
             (load (tensor K,V) (index (tile h) (fulltile) (fulltile)))
-            (index (tile h) (const_tile 1024 16) (fulltile))
+            (index (tile h) (const_tile 1008 16) (fulltile))
         )
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C)
                 (*
                     (load (tensor Q) (index (tile h) (fulltile) (fulltile)))
@@ -341,7 +341,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_exp)
                 (exp (load (tensor C) (index (tile h) (fulltile) (tile p))))
                 (index (tile h) (fulltile) (tile p))
@@ -350,7 +350,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_sum)
                 (+
                     (x (load (tensor C_sum) (index (tile h) (fulltile))) 1)
@@ -365,7 +365,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_div)
                 (/
                     (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
@@ -380,7 +380,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor O)
                 (+
                     (x (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
@@ -395,7 +395,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (seq
                 (store (output C_out1)
                     (rsum
@@ -442,12 +442,12 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         8,
     );
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_falcon_cost6_kern2.json", 6, 2) {
+    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_falcon_cost6_kern1.json", 6, 1) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_falcon_cost6_kern2.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_falcon_cost6_kern1.json", usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -459,7 +459,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/roco_falcon_cost6_kern2.txt").expect("Failed to create file");
+    let file = File::create("/home/jhpark676/Project/trinity/expressions/roco_falcon_cost6_kern1.txt").expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions
@@ -478,192 +478,6 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
     
     writer.flush().expect("Failed to flush writer");
 
-}
-
-#[test]
-fn roco_split_part2() {
-    setup_shape_tracker(vec![
-      ("X", vec![16, 4096]),
-      ("WQ", vec![4096, 4096]),
-      ("WK", vec![4096, 4096]),
-      ("WV", vec![4096, 4096]),
-      ("Q1", vec![16, 4096]),
-      ("K1", vec![16, 4096]),
-      ("V1", vec![16, 4096]),
-      ("Q2", vec![16, 32, 128]),
-      ("K2", vec![16, 32, 128]),
-      ("V2", vec![16, 32, 128]),
-      ("Q", vec![32, 16, 128]),
-      ("K", vec![32, 16, 128]),
-      ("V", vec![32, 16, 128]),
-      ("K_cache", vec![32, 1024, 128]),
-      ("V_cache", vec![32, 1024, 128]),
-      ("C", vec![32, 16, 1024]),
-      ("C_exp", vec![32, 16, 1024]),
-      ("C_sum", vec![32, 16]),
-      ("C_div", vec![32, 16, 1024]),
-      ("O", vec![32, 16, 128]),
-      ("O1", vec![16, 32, 128]),
-      ("O2", vec![16, 4096]),
-        ("C_out1", vec![32, 1024]),
-        ("C_out2", vec![32, 1024]),
-  ]);
-
-    let expr = "
-(seq
-    (loop 0 32 tile_h h 
-        (loop 0 1024 tile_p p
-            (store (tensor C)
-                (*
-                    (load (input Q) (index (tile h) (fulltile) (fulltile)))
-                    (permute3
-                        (load (input K_cache) (index (tile h) (tile p) (fulltile)))
-                        0 2 1
-                    )
-                )
-                (index (tile h) (fulltile) (tile p))
-            )
-        )
-    )
-(seq
-    (loop 0 32 tile_h h 
-        (loop 0 1024 tile_p p
-            (store (tensor C_exp)
-                (exp (load (tensor C) (index (tile h) (fulltile) (tile p))))
-                (index (tile h) (fulltile) (tile p))
-            )
-        )
-    )
-(seq
-    (loop 0 32 tile_h h 
-        (loop 0 1024 tile_p p
-            (store (tensor C_sum)
-                (+
-                    (x (load (tensor C_sum) (index (tile h) (fulltile))) 1)
-                    (rsum
-                        (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
-                        2
-                    )
-                )
-                (index (tile h) (fulltile))
-            )
-        )
-    )
-(seq
-    (loop 0 32 tile_h h 
-        (loop 0 1024 tile_p p
-            (store (tensor C_div)
-                (/
-                    (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
-                    (bcast
-                        (load (tensor C_sum) (index (tile h) (fulltile)))
-                        2
-                    )
-                )
-                (index (tile h) (fulltile) (tile p))
-            )
-        )
-    )
-(seq
-    (loop 0 32 tile_h h 
-        (loop 0 1024 tile_p p
-            (store (tensor O)
-                (+
-                    (x (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
-                    (*
-                        (load (tensor C_div) (index (tile h) (fulltile) (tile p)))
-                        (load (input V_cache) (index (tile h) (tile p) (fulltile)))
-                    )
-                )
-                (index (tile h) (fulltile) (fulltile))
-            )
-        )
-    )
-(seq
-    (loop 0 32 tile_h h 
-        (loop 0 1024 tile_p p
-            (seq
-                (store (output C_out1)
-                    (rsum
-                        (load (tensor C_div) (index (tile h) (fulltile) (tile p)))
-                        1
-                    )
-                    (index (tile h) (tile p))
-                )
-                (store (output C_out2)
-                    (rsum
-                        (sqr (load (tensor C_div) (index (tile h) (fulltile) (tile p))))
-                        1
-                    )
-                    (index (tile h) (tile p))
-                )
-            )
-        )
-    )
-(seq
-    (loop 0 32 tile_h h
-        (store (tensor O1)
-            (permute3
-                (load (tensor O) (index (tile h) (fulltile) (fulltile)))
-                1 0 2
-            )
-            (index (fulltile) (tile h) (fulltile))
-        )
-    )
-    (loop 0 4096 128 n
-        (store (output O2)
-            (squeeze
-                (load (tensor O1) (index (fulltile) (elem n) (fulltile)))
-                1
-            )
-            (index (fulltile) (tile n))
-        )
-    )
-    )))))))
-    ";
-
-    let mut runner = run_until_saturated(
-        expr,
-        rules(),
-        8,
-    );
-    
-
-    match list_expressions_with_target_cost_v3_part1(&runner, "./expressions/semi/roco_split_part2_cost3_kern1.json", 3, 1) {
-        Ok(count) => println!("Saved {} expressions", count),
-        Err(e) => eprintln!("Save error: {}", e),
-    }
-
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "./expressions/semi/roco_split_part2_cost3_kern1.json", usize::MAX) {
-        Ok((expressions, tile_sets)) => {
-            println!("Loaded {} final expressions", expressions.len());
-            println!("{:?}", tile_sets);
-            (expressions, tile_sets)
-        },
-        Err(e) => {
-            println!("Load error: {}", e);
-            return;
-        }
-    };
-
-    let file = File::create("./expressions/roco_split_part2_cost3_kern1.txt").expect("Failed to create file");
-    let mut writer = BufWriter::new(file);
-    
-    expressions
-    .par_iter()
-    .enumerate()
-    .map(|(i, expr)| {
-        let new_expr = postprocess_v2(expr, &tile_sets);
-        format!("{}: {}", i, new_expr) // String 생성
-    })
-    .filter(|line| !line.contains("dummydata")) // "dummydata" 포함된 건 제외
-    .collect::<Vec<String>>() 
-    .iter()
-    .for_each(|line| {
-        writeln!(writer, "{}", line).expect("Failed to write to file");
-    });
-    
-    writer.flush().expect("Failed to flush writer");
 }
 
 #[test]

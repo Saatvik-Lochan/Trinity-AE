@@ -44,19 +44,19 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     ("Q", vec![32, 16, 128]),
     ("K", vec![32, 16, 128]),
     ("V", vec![32, 16, 128]),
-    ("K_cache", vec![32, 1040, 128]),
-    ("V_cache", vec![32, 1040, 128]),
-    ("C", vec![32, 16, 1040]),
-    ("C_exp", vec![32, 16, 1040]),
+    ("K_cache", vec![32, 1024, 128]),
+    ("V_cache", vec![32, 1024, 128]),
+    ("C", vec![32, 16, 1024]),
+    ("C_exp", vec![32, 16, 1024]),
     ("C_sum", vec![32, 16]),
-    ("C_div", vec![32, 16, 1040]),
+    ("C_div", vec![32, 16, 1024]),
     
-    ("C_perturb", vec![32, 16, 1040]),
-    ("noise", vec![32, 16, 1040]),
-    ("C_exp_perturb", vec![32, 16, 1040]),
+    ("C_perturb", vec![32, 16, 1024]),
+    ("noise", vec![32, 16, 1024]),
+    ("C_exp_perturb", vec![32, 16, 1024]),
     ("C_sum_perturb", vec![32, 16]),
-    ("C_div_perturb", vec![32, 16, 1040]),
-    ("C_out", vec![32, 1040]),
+    ("C_div_perturb", vec![32, 16, 1024]),
+    ("C_out", vec![32, 1024]),
 
     ("O", vec![32, 16, 128]),
     ("O1", vec![16, 32, 128]),
@@ -100,12 +100,12 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     (loop 0 32 tile_h h
         (store (input K_cache,V_cache)
             (load (tensor K,V) (index (tile h) (fulltile) (fulltile)))
-            (index (tile h) (const_tile 1024 16) (fulltile))
+            (index (tile h) (const_tile 1008 16) (fulltile))
         )
     )
 (seq
     (loop 0 32 tile_h h
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C)
                 (*
                     (load (tensor Q) (index (tile h) (fulltile) (fulltile)))
@@ -120,7 +120,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_perturb)
                 (/
                     (+
@@ -135,7 +135,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_exp,C_exp_perturb)
                 (exp (load (tensor C,C_perturb) (index (tile h) (fulltile) (tile p))))
                 (index (tile h) (fulltile) (tile p))
@@ -144,7 +144,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_sum,C_sum_perturb)
                 (+
                     (x (load (tensor C_sum,C_sum_perturb) (index (tile h) (fulltile))) 1)
@@ -159,7 +159,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_div)
                 (/
                     (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
@@ -174,7 +174,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor O)
                 (+
                     (x (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
@@ -189,7 +189,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_div_perturb)
                 (/
                     (load (tensor C_exp_perturb) (index (tile h) (fulltile) (tile p)))
@@ -204,7 +204,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
     )
 (seq
     (loop 0 32 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (output C_out)
                 (rsum
                     (load (tensor C_div_perturb) (index (tile h) (fulltile) (tile p)))
@@ -242,12 +242,12 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
         8,
     );
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_llama_cost6_kern2.json", 6, 2) {
+    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_llama_cost6_kern1.json", 6, 1) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_llama_cost6_kern2.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_llama_cost6_kern1.json", usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -259,7 +259,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/keyformer_llama_cost6_kern2.txt").expect("Failed to create file");
+    let file = File::create("/home/jhpark676/Project/trinity/expressions/keyformer_llama_cost6_kern1.txt").expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions
@@ -296,19 +296,19 @@ setup_shape_tracker(vec![
         ("Q", vec![71, 16, 64]),
         ("K", vec![71, 16, 64]),
         ("V", vec![71, 16, 64]),
-        ("K_cache", vec![71, 1040, 64]),
-        ("V_cache", vec![71, 1040, 64]),
-        ("C", vec![71, 16, 1040]),
-        ("C_exp", vec![71, 16, 1040]),
+        ("K_cache", vec![71, 1024, 64]),
+        ("V_cache", vec![71, 1024, 64]),
+        ("C", vec![71, 16, 1024]),
+        ("C_exp", vec![71, 16, 1024]),
         ("C_sum", vec![71, 16]),
-        ("C_div", vec![71, 16, 1040]),
+        ("C_div", vec![71, 16, 1024]),
         
-        ("C_perturb", vec![71, 16, 1040]),
-        ("noise", vec![71, 16, 1040]),
-        ("C_exp_perturb", vec![71, 16, 1040]),
+        ("C_perturb", vec![71, 16, 1024]),
+        ("noise", vec![71, 16, 1024]),
+        ("C_exp_perturb", vec![71, 16, 1024]),
         ("C_sum_perturb", vec![71, 16]),
-        ("C_div_perturb", vec![71, 16, 1040]),
-        ("C_out", vec![71, 1040]),
+        ("C_div_perturb", vec![71, 16, 1024]),
+        ("C_out", vec![71, 1024]),
 
         ("O", vec![71, 16, 64]),
         ("O1", vec![16, 71, 64]),
@@ -352,12 +352,12 @@ setup_shape_tracker(vec![
     (loop 0 71 tile_h h
         (store (input K_cache,V_cache)
             (load (tensor K,V) (index (tile h) (fulltile) (fulltile)))
-            (index (tile h) (const_tile 1024 16) (fulltile))
+            (index (tile h) (const_tile 1008 16) (fulltile))
         )
     )
 (seq
     (loop 0 71 tile_h h
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C)
                 (*
                     (load (tensor Q) (index (tile h) (fulltile) (fulltile)))
@@ -372,7 +372,7 @@ setup_shape_tracker(vec![
     )
 (seq
     (loop 0 71 tile_h h
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_perturb)
                 (/
                     (+
@@ -387,7 +387,7 @@ setup_shape_tracker(vec![
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_exp,C_exp_perturb)
                 (exp (load (tensor C,C_perturb) (index (tile h) (fulltile) (tile p))))
                 (index (tile h) (fulltile) (tile p))
@@ -396,7 +396,7 @@ setup_shape_tracker(vec![
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_sum,C_sum_perturb)
                 (+
                     (x (load (tensor C_sum,C_sum_perturb) (index (tile h) (fulltile))) 1)
@@ -411,7 +411,7 @@ setup_shape_tracker(vec![
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_div)
                 (/
                     (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
@@ -426,7 +426,7 @@ setup_shape_tracker(vec![
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor O)
                 (+
                     (x (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
@@ -441,7 +441,7 @@ setup_shape_tracker(vec![
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (tensor C_div_perturb)
                 (/
                     (load (tensor C_exp_perturb) (index (tile h) (fulltile) (tile p)))
@@ -456,7 +456,7 @@ setup_shape_tracker(vec![
     )
 (seq
     (loop 0 71 tile_h h 
-        (loop 0 1040 tile_p p
+        (loop 0 1024 tile_p p
             (store (output C_out)
                 (rsum
                     (load (tensor C_div_perturb) (index (tile h) (fulltile) (tile p)))
@@ -494,12 +494,12 @@ setup_shape_tracker(vec![
         8,
     );
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_falcon_cost6_kern2.json", 6, 2) {
+    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_falcon_cost6_kern1.json", 6, 1) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_falcon_cost6_kern2.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_falcon_cost6_kern1.json", usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -511,7 +511,7 @@ setup_shape_tracker(vec![
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/keyformer_falcon_cost6_kern2.txt").expect("Failed to create file");
+    let file = File::create("/home/jhpark676/Project/trinity/expressions/keyformer_falcon_cost6_kern1.txt").expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions
