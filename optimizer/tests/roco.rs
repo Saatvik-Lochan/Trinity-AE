@@ -2,6 +2,7 @@ use egg::{test_fn2, test_fn_not2, *};
 use std::io::BufWriter;
 use std::io::Write;
 use std::fs::File;
+use std::path::PathBuf;
 use rayon::prelude::*;
 use trinity::*;
 use trinity::language::{TileLang, LoopAnalysis, SHAPE_TRACKER};
@@ -11,6 +12,10 @@ use egg::*;
 use std::sync::Once;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
+
+fn get_expressions_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("expressions")
+}
 
 // Helper function to set up shape tracker for tests
 fn setup_shape_tracker(shapes: Vec<(&str, Vec<usize>)>) {
@@ -216,12 +221,16 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
         8,
     );
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_llama_cost6_kern1.json", 6, 1) {
+    let expr_path = get_expressions_path();
+    let semi_path = expr_path.join("semi/roco_llama_cost6_kern1.json");
+    let output_path = expr_path.join("roco_llama_cost6_kern1.txt");
+
+    match list_expressions_with_target_cost_v3_part1(&runner, semi_path.to_str().unwrap(), 6, 1) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_llama_cost6_kern1.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, semi_path.to_str().unwrap(), usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -233,7 +242,7 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/roco_llama_cost6_kern1.txt").expect("Failed to create file");
+    let file = File::create(&output_path).expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions
@@ -442,12 +451,16 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         8,
     );
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_falcon_cost6_kern1.json", 6, 1) {
+    let expr_path = get_expressions_path();
+    let semi_path = expr_path.join("semi/roco_falcon_cost6_kern1.json");
+    let output_path = expr_path.join("roco_falcon_cost6_kern1.txt");
+
+    match list_expressions_with_target_cost_v3_part1(&runner, semi_path.to_str().unwrap(), 6, 1) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_falcon_cost6_kern1.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, semi_path.to_str().unwrap(), usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -459,7 +472,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/roco_falcon_cost6_kern1.txt").expect("Failed to create file");
+    let file = File::create(&output_path).expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions
@@ -799,12 +812,16 @@ fn roco_only() {
         8,
     );
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_rocoonly_cost6_kern1.json", 6, 1) {
+    let expr_path = get_expressions_path();
+    let semi_path = expr_path.join("semi/roco_rocoonly_cost6_kern1.json");
+    let output_path = expr_path.join("roco_rocoonly_cost6_kern1.txt");
+
+    match list_expressions_with_target_cost_v3_part1(&runner, semi_path.to_str().unwrap(), 6, 1) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/roco_rocoonly_cost6_kern1.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, semi_path.to_str().unwrap(), usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -816,7 +833,7 @@ fn roco_only() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/roco_rocoonly_cost6_kern1.txt").expect("Failed to create file");
+    let file = File::create(&output_path).expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions

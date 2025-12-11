@@ -2,6 +2,7 @@ use egg::{test_fn2, test_fn_not2, *};
 use std::io::BufWriter;
 use std::io::Write;
 use std::fs::File;
+use std::path::PathBuf;
 use rayon::prelude::*;
 use trinity::*;
 use trinity::language::{TileLang, LoopAnalysis, SHAPE_TRACKER};
@@ -11,6 +12,10 @@ use egg::*;
 use std::sync::Once;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
+
+fn get_expressions_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("expressions")
+}
 
 // Helper function to set up shape tracker for tests
 fn setup_shape_tracker(shapes: Vec<(&str, Vec<usize>)>) {
@@ -182,12 +187,16 @@ fn llama_extract_ffn_expressions() {
     // let all_possibilities = count_expressions_all_for_root(&runner);
     // println!("{:?}", all_possibilities);
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/llama8b_ffn_cost6_kern1_wo_scheduler2.json", 6, 1) {
+    let expr_path = get_expressions_path();
+    let semi_path = expr_path.join("semi/llama_ffn_cost6_kern5_wo_scheduler2.json");
+    let output_path = expr_path.join("llama_ffn_cost6_kern5_wo_scheduler2.txt");
+
+    match list_expressions_with_target_cost_v3_part1(&runner, semi_path.to_str().unwrap(), 6, 5) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/llama8b_ffn_cost6_kern1_wo_scheduler2.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, semi_path.to_str().unwrap(), usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -199,7 +208,7 @@ fn llama_extract_ffn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/llama8b_ffn_cost6_kern1_wo_scheduler2.txt").expect("Failed to create file");
+    let file = File::create(&output_path).expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions
@@ -372,12 +381,16 @@ fn falcon_extract_ffn_expressions() {
     // let all_possibilities = count_expressions_all_for_root(&runner);
     // println!("{:?}", all_possibilities);
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/llama8b_ffn_cost6_kern1_wo_scheduler2.json", 6, 1) {
+    let expr_path = get_expressions_path();
+    let semi_path = expr_path.join("semi/falcon_ffn_cost6_kern5_wo_scheduler2.json");
+    let output_path = expr_path.join("falcon_ffn_cost6_kern5_wo_scheduler2.txt");
+
+    match list_expressions_with_target_cost_v3_part1(&runner, semi_path.to_str().unwrap(), 6, 5) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/llama8b_ffn_cost6_kern1_wo_scheduler2.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, semi_path.to_str().unwrap(), usize::MAX) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
@@ -389,7 +402,7 @@ fn falcon_extract_ffn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/llama8b_ffn_cost6_kern1_wo_scheduler2.txt").expect("Failed to create file");
+    let file = File::create(&output_path).expect("Failed to create file");
     let mut writer = BufWriter::new(file);
     
     expressions

@@ -15,7 +15,6 @@ import argparse
 import shutil
 
 from codegen.convert_module import convert_ir_to_triton
-from baseline.ffn_ref import TRT_Falcon_Ffn, PyTorchTensorProgram
 
 @dataclass
 class BenchmarkResult:
@@ -587,73 +586,6 @@ def print_comprehensive_report(all_results, top_k):
         print(f"   Tensor Config: M={result.tensor_config['M']}, N={result.tensor_config['N']}")
         print(f"   Expression: {result.ir_expression[:100]}...")
 
-def print_ref(tensor_config, benchmark_instances):
-    """Print reference kernel benchmarks using the same tensors from benchmark instances.
-    
-    Args:
-        tensor_config: List of tensor configurations
-        benchmark_instances: List of FalconBenchmark instances corresponding to each config
-    """
-    for idx, (config, benchmark) in enumerate(zip(tensor_config, benchmark_instances)):
-        M = config['M']
-        N = config['N']
-
-        device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
-        torch.cuda.set_device(device)
-        
-        ITER = 100
-
-        # Reuse tensors from benchmark instance
-        X = benchmark.tensors['X']
-        O2 = benchmark.tensors['O2']
-        WO = benchmark.tensors['WO']
-        WFF1a = benchmark.tensors['WFF1a']
-        WFF1b = benchmark.tensors['WFF1b']
-        WFF2 = benchmark.tensors['WFF2']
-        
-        print("\nTesting TensorRT...")
-        block = TRT_Falcon_Ffn(M, N, WO=WO, WFF1a=WFF1a, WFF1b=WFF1b, WFF2=WFF2).to(device=device)
-        block.half()
-        with torch.no_grad():
-            for _ in range(10):
-                out = block(O2, X)
-            torch.cuda.synchronize()
-
-            start_rt = torch.cuda.Event(enable_timing=True)
-            end_rt = torch.cuda.Event(enable_timing=True)
-
-            start_rt.record()
-            for _ in range(ITER):
-                out = block(O2, X)
-            end_rt.record()
-            torch.cuda.synchronize()
-            rt_time = start_rt.elapsed_time(end_rt)
-
-        # print("\nTesting Simple Attention...")
-        # # For SimpleAttention, use the benchmark tensors directly (already in correct shape)
-        # simple_block = PyTorchTensorProgram(WO=WO, WFF1a=WFF1a, WFF1b=WFF1b, WFF2=WFF2).to(device=device)
-        # with torch.no_grad():
-        #     for _ in range(10):
-        #         out = simple_block(O2, X)
-        #     torch.cuda.synchronize()
-        
-        #     start_simple =torch.cuda.Event(enable_timing=True)
-        #     end_simple = torch.cuda.Event(enable_timing=True)
-
-        #     start_simple.record()
-        #     for _ in range(ITER):
-        #         out = simple_block(O2, X)
-        #     end_simple.record()
-        #     torch.cuda.synchronize()
-        #     simple_time = start_simple.elapsed_time(end_simple)
-        
-        # print("\n" + "="*100)
-        # print("REFERENCE KERNELS TIME")
-        # print(f"GPU: {torch.cuda.get_device_name(device)}")
-        # print(f"TensorRT execution time: {rt_time / ITER:.3f} ms / iter")
-        # print(f"Simple manual attention execution time: {simple_time / ITER:.3f} ms / iter")
-        # print("="*100)
-
 def main():
     """Main function to run Attacc IR benchmarks."""
     # Configuration
@@ -735,7 +667,6 @@ def main():
     
     # Print comprehensive report
     print_comprehensive_report(all_results, args.topk)
-    print_ref(TENSOR_CONFIGS, benchmark_instances)
 
 if __name__ == "__main__":
     main()
