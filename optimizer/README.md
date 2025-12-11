@@ -6,7 +6,7 @@
 
 Trinity Optimizer generates optimized IR candidates for tensor programs using e-graph based equality saturation(egg library). It explores various optimization transformations by applying tile-level equivalence rules.
 
-<!-- ## Directory Structure
+## Directory Structure
 
 ```
 optimizer/
@@ -30,7 +30,7 @@ optimizer/
 │   └── semi/               # Intermediate results (JSON)
 ├── egg/                    # egg library (local fork)
 └── benchmark/              # Benchmark related files
-``` -->
+```
 
 ## Usage
 
@@ -84,3 +84,4 @@ RUSTFLAGS="-A warnings" cargo test --test vanilla -- --nocapture
 Test results are saved in the `expressions/` directory:
 - `expressions/semi/*.json`: Intermediate results (semi-extracted expressions)
 - `expressions/*.txt`: Final processed expression list
+- `backend/evaluation/{method}/*.txt`: Pre-generated expression lists for profile execution

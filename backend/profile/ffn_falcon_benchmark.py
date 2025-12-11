@@ -31,6 +31,7 @@ class FalconBenchmark:
         # Extract dimensions from config
         self.M = tensor_config['M']
         self.N = tensor_config['N']
+        self.N4 = tensor_config['N4']
         
         # Store the config
         self.tensor_config = tensor_config
@@ -43,17 +44,14 @@ class FalconBenchmark:
             'attn_O2': (self.M, self.N),
             'attn_O3': (self.M),
             'attn_O_norm': (self.M, self.N),
-            'WFF1a': (self.N, self.N),
-            'WFF1b': (self.N, self.N),
-            'FF1a': (self.M, self.N),
-            'FF1b': (self.M, self.N),
-            'FF1b_silu': (self.M, self.N),
-            'FF1': (self.M, self.N),
+            'WFF1a': (self.N, self.N4),
+            'WFF1b': (self.N, self.N4),
+            'FF1a': (self.M, self.N4),
+            'FF1b': (self.M, self.N4),
+            'FF1b_silu': (self.M, self.N4),
+            'FF1': (self.M, self.N4),
             'FF2': (self.M, self.N),
-            'WFF2': (self.N, self.N),
-            'O_FF': (self.M, self.N),
-            'O_FF1': (self.M),
-            'O_FF_norm': (self.M, self.N)
+            'WFF2': (self.N4, self.N),
         }
         
         self.shape_dict = {
@@ -64,27 +62,22 @@ class FalconBenchmark:
             'attn_O2': ('M', 'N'),
             'attn_O3': ('M'),
             'attn_O_norm': ('M', 'N'),
-            'WFF1a': ('N', 'N'),
-            'WFF1b': ('N', 'N'),
-            'FF1a': ('M', 'N'),
-            'FF1b': ('M', 'N'),
-            'FF1b_silu': ('M', 'N'),
-            'FF1': ('M', 'N'),
+            'WFF1a': ('N', 'N4'),
+            'WFF1b': ('N', 'N4'),
+            'FF1a': ('M', 'N4'),
+            'FF1b': ('M', 'N4'),
+            'FF1b_silu': ('M', 'N4'),
+            'FF1': ('M', 'N4'),
             'FF2': ('M', 'N'),
-            'WFF2': ('N', 'N'),
-            'O_FF': ('M', 'N'),
-            'O_FF1': ('M'),
-            'O_FF_norm': ('M', 'N')
+            'WFF2': ('N4', 'N'),
         }
 
         self.const_dict = tensor_config.copy()
 
         # Setup device
-        self.device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         torch.cuda.set_device(self.device)
         print(f"GPU: {torch.cuda.get_device_name(self.device)}")
-        # if self.device.type != 'cuda':
-        #     raise RuntimeError("CUDA device not available. Triton requires CUDA.")
             
         # Create test tensors
         self.create_test_tensors()
@@ -100,8 +93,7 @@ class FalconBenchmark:
         self.tensors = {}
         for name, shape in self.tensor_shapes.items():
             if name in ['attn_O1', 'attn_O2', 'attn_O3', 'attn_O_norm',
-                        'FF1a', 'FF1b', 'FF1b_silu', 'FF1', 'FF2',
-                        'O_FF', 'O_FF1', 'O_FF_norm']:  # Output and intermediate tensors
+                        'FF1a', 'FF1b', 'FF1b_silu', 'FF1', 'FF2',]:  # Output and intermediate tensors
                 # Initialize to zero since they're used as accumulators or outputs
                 self.tensors[name] = torch.zeros(shape, dtype=torch.float16, device=self.device)
             else:  # Input tensors (O2, WO, X, WFF1a, WFF1b, WFF2)
@@ -150,7 +142,7 @@ class FalconBenchmark:
         """Compile Triton kernel code and return callable function."""
         try:
             # Create temporary module file
-            module_name = f"llama_kernel_{kernel_id}"
+            module_name = f"falcon_kernel_{kernel_id}"
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
                 f.write(kernel_code)
                 temp_file = f.name
@@ -194,13 +186,12 @@ class FalconBenchmark:
         try:
             # Get metadata and forward function
             tensor_params = getattr(kernel_module, 'TENSOR_PARAMS', ['O2', 'WO', 'attn_O1', 'X', 'attn_O2', 'attn_O3', 
-                                                                    'attn_O_norm','WFF1a', 'WFF1b', 'FF1a', 'FF1b', 'FF1b_silu', 'FF1', 'FF2', 'WFF2','O_FF', 'O_FF1', 'O_FF_norm'])
+                                                                    'attn_O_norm','WFF1a', 'WFF1b', 'FF1a', 'FF1b', 'FF1b_silu', 'FF1', 'FF2', 'WFF2'])
             kernel_fn = kernel_module.forward
             
             # Reset output tensor to zero for each benchmark
             for name in ['attn_O1', 'attn_O2', 'attn_O3', 'attn_O_norm',
-                        'FF1a', 'FF1b', 'FF1b_silu', 'FF1', 'FF2',
-                        'O_FF', 'O_FF1', 'O_FF_norm']:
+                        'FF1a', 'FF1b', 'FF1b_silu', 'FF1', 'FF2']:
                 if name in self.tensors:
                     self.tensors[name].zero_()
             
@@ -249,12 +240,6 @@ class FalconBenchmark:
                 end_event.record()
             stream.synchronize()
             
-            # Check for NaN values in O2 tensor
-            if 'O2' in self.tensors:
-                has_nan = torch.isnan(self.tensors['O_FF_norm']).any().item()
-                if has_nan:
-                    print(f"WARNING: NaN values detected in O_FF_norm tensor!")
-            
             # Return average time in milliseconds
             avg_time = (start_event.elapsed_time(end_event)) / benchmark_runs
             return avg_time
@@ -285,7 +270,7 @@ class FalconBenchmark:
             self.cleanup_gpu()
             
             # Also clean up the loaded module to prevent memory leaks
-            module_name = f"llama_kernel_{ir_id}"
+            module_name = f"falcon_kernel_{ir_id}"
             if module_name in sys.modules:
                 del sys.modules[module_name]
             
@@ -589,20 +574,13 @@ def print_comprehensive_report(all_results, top_k):
 def main():
     """Main function to run Attacc IR benchmarks."""
     # Configuration
-    IR_FILE = "./benchmark_ffn_falcon/llama8b_ffn_cost6_kern5_wo_scheduler2.txt"
-    OUTPUT_FILE = "./benchmark_ffn_falcon/benchmark_ffn_llama.json"
-    TENSOR_FILE = "./benchmark_ffn_falcon/tensor_configs.json"
+    IR_FILE = "./evaluation/ffn/falcon_ffn_cost6_kern5_wo_scheduler2.txt"
+    OUTPUT_FILE = "./evaluation/ffn/ffn_falcon.json"
+    TENSOR_FILE = "./evaluation/falcon_configs.json"
     START_EXPRESSIONS = 0
     NUM_EXPRESSIONS = 10  # Reduced for testing multiple configurations
     TOP_K = 5  # Number of best kernels to report
-    
-    # Define tensor shape candidates
-    # TENSOR_CONFIGS = [
-    #     {'M': 16, 'N': 1024, 'P': 512, 'R': 64},      # Original config
-    #     {'M': 32, 'N': 1024, 'P': 512, 'R': 64},      # Larger batch
-    #     {'M': 16, 'N': 2048, 'P': 1024, 'R': 128},    # Larger model
-    #     {'M': 8, 'N': 512, 'P': 256, 'R': 32},        # Smaller model
-    # ]
+
     with open(TENSOR_FILE, 'r') as f:
         TENSOR_CONFIGS = json.load(f)
 
@@ -614,10 +592,6 @@ def main():
     parser.add_argument('--end', action='store_true', help="Run from start ID to the last test case")
     parser.add_argument('--topk', type=int, default=TOP_K, help="Number of top kernels to report")
     parser.add_argument('--all', action='store_true', help="Run all configurations comprehensively")
-    
-    # Add options to customize tensor and block configs
-    # parser.add_argument('--tensor-configs', type=str, help="JSON file with tensor configurations")
-    # parser.add_argument('--block-configs', type=str, help="JSON file with block configurations")
 
     args = parser.parse_args()
     
@@ -635,15 +609,6 @@ def main():
         total_expressions = None  # None means no limit
     else:
         total_expressions = args.num
-
-    # Load custom configurations if provided
-    # if args.tensor_configs:
-        # with open(args.tensor_configs, 'r') as f:
-        #     TENSOR_CONFIGS = json.load(f)
-    
-    # if args.block_configs:
-        # with open(args.block_configs, 'r') as f:
-        #     BLOCK_CONFIGS = json.load(f)
     
     # Check CUDA availability
     if not torch.cuda.is_available():

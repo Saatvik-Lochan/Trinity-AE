@@ -23,8 +23,6 @@ def main():
     output_file = f"./results/{target}/{target}_{model}_benchmark{num}.py"
     module_name = f"{target}_{model}_best"
 
-    # output_file = "./evaluation/manual/manual_llama_benchmark1.py"
-
     if model == 'falcon':
         M = 16
         D = 64
@@ -257,7 +255,6 @@ def main():
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
         forward = getattr(module, "forward")
-        # forward = getattr(module, "forward_m1_padded")
 
         tensor_params = getattr(module, 'TENSOR_PARAMS')
         block_params = getattr(module, 'BLOCK_PARAMS')

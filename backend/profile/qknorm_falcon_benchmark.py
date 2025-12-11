@@ -15,7 +15,6 @@ import json
 import argparse
 
 from codegen.convert_module import convert_ir_to_triton
-# from ref_rms import TensorRT_kernel_RMSNorm,  SimpleAttention
 
 @dataclass
 class BenchmarkResult:
@@ -26,7 +25,7 @@ class BenchmarkResult:
     error: Optional[str] = None
     
     
-class RMSBenchmark:
+class FalconQkBench:
     def __init__(self, tensor_config: Dict[str, int]):
         """Initialize benchmark with given tensor configuration."""
         # Extract dimensions from config
@@ -184,7 +183,7 @@ class RMSBenchmark:
         """Compile Triton kernel code and return callable function."""
         try:
             # Create temporary module file
-            module_name = f"llama_kernel_{kernel_id}"
+            module_name = f"falcon_kernel_{kernel_id}"
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
                 f.write(kernel_code)
                 temp_file = f.name
@@ -287,12 +286,6 @@ class RMSBenchmark:
                 end_event.record()
             stream.synchronize()
             
-            # Check for NaN values in O2 tensor
-            if 'O2' in self.tensors:
-                has_nan = torch.isnan(self.tensors['O2']).any().item()
-                if has_nan:
-                    print(f"WARNING: NaN values detected in [{ir_id}] O2 tensor!")
-            
             # Return average time in milliseconds
             avg_time = (start_event.elapsed_time(end_event)) / benchmark_runs
             return avg_time
@@ -323,7 +316,7 @@ class RMSBenchmark:
             self.cleanup_gpu()
             
             # Also clean up the loaded module to prevent memory leaks
-            module_name = f"llama_kernel_{ir_id}"
+            module_name = f"falcon_kernel_{ir_id}"
             if module_name in sys.modules:
                 del sys.modules[module_name]
             
@@ -482,7 +475,7 @@ def run_comprehensive_benchmark(tensor_configs, ir_file, start_expressions, num_
         print(f"\nTensor Configuration {tensor_idx + 1}/{len(tensor_configs)}: M={tensor_config['M']}, N={tensor_config['N']}")
         
         # Initialize benchmark with this tensor configuration
-        benchmark = RMSBenchmark(tensor_config)
+        benchmark = FalconQkBench(tensor_config)
         benchmark_instances.append(benchmark)
         
         try:
@@ -623,109 +616,6 @@ def print_comprehensive_report(all_results, top_k):
         print(f"   Tensor Config: M={result.tensor_config['M']}, N={result.tensor_config['N']}")
         print(f"   Expression: {result.ir_expression[:100]}...")
 
-# def print_ref(tensor_config, benchmark_instances):
-#     """Print reference kernel benchmarks using the same tensors from benchmark instances.
-    
-#     Args:
-#         tensor_config: List of tensor configurations
-#         benchmark_instances: List of AttaccBenchmark instances corresponding to each config
-#     """
-#     for idx, (config, benchmark) in enumerate(zip(tensor_config, benchmark_instances)):
-#         M = config['M']
-#         N = config['N']
-#         D = config['D']
-#         P = config['P']
-#         H = config['H']
-
-#         device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
-#         torch.cuda.set_device(device)
-        
-#         ITER = 100
-
-#         # Reuse tensors from benchmark instance
-#         X = benchmark.tensors['X']
-#         # Note: K_cache and V_cache have different shapes in benchmark vs reference
-#         # Benchmark uses (H, P+M, D) while reference expects (1, P+M, H, D)
-#         # We need to reshape accordingly
-#         cache_K_benchmark = benchmark.tensors['K_cache']  # Shape: (H, P+M, D)
-#         cache_V_benchmark = benchmark.tensors['V_cache']  # Shape: (H, P+M, D)
-
-#         cache_K = cache_K_benchmark.permute(1, 0, 2).unsqueeze(0)  # (H, P+M, D) -> (P+M, H, D) -> (1, P+M, H, D)
-#         cache_V = cache_V_benchmark.permute(1, 0, 2).unsqueeze(0)  # (H, P+M, D) -> (P+M, H, D) -> (1, P+M, H, D)
-
-#         # Get WQ, WK, WV from benchmark instance
-#         WQ = benchmark.tensors['WQ']
-#         WK = benchmark.tensors['WK']
-#         WV = benchmark.tensors['WV']
-        
-#         print("\nTesting TensorRT...")
-#         block = TensorRT_kernel_RMSNorm(M, N, D, H, cache_K, cache_V, P, WQ, WK, WV).to(device=device)
-#         block.half()
-#         with torch.no_grad():
-#             for _ in range(10):
-#                 out = block(X)
-#             torch.cuda.synchronize()
-
-#             start_rt = torch.cuda.Event(enable_timing=True)
-#             end_rt = torch.cuda.Event(enable_timing=True)
-
-#             start_rt.record()
-#             for _ in range(ITER):
-#                 out = block(X)
-#             end_rt.record()
-#             torch.cuda.synchronize()
-#             rt_time = start_rt.elapsed_time(end_rt)
-
-#         # Reshape for Flash Decoding which expects (1, P+M, H, D)
-#         cache_K = cache_K_benchmark.permute(1, 0, 2).unsqueeze(0)  # (H, P+M, D) -> (P+M, H, D) -> (1, P+M, H, D)
-#         cache_V = cache_V_benchmark.permute(1, 0, 2).unsqueeze(0)  # (H, P+M, D) -> (P+M, H, D) -> (1, P+M, H, D)
-
-#         # print("\nTesting Flash Decoding...")
-#         # block = Torch_kernel1(N, D, H, cache_K, cache_V, P).to(device=device)
-#         # block.half()
-#         # with torch.no_grad():
-#         #     for _ in range(10):
-#         #         out = block(X)
-#         #     torch.cuda.synchronize()
-
-#         #     start_flash = torch.cuda.Event(enable_timing=True)
-#         #     end_flash = torch.cuda.Event(enable_timing=True)
-
-#         #     start_flash.record()
-#         #     for _ in range(ITER):
-#         #         out = block(X)
-#         #     end_flash.record()
-#         #     torch.cuda.synchronize()
-#         #     flash_time = start_flash.elapsed_time(end_flash)
-
-#         print("\nTesting Simple Attention...")
-#         # For SimpleAttention, use the benchmark tensors directly (already in correct shape)
-#         cache_K_simple = benchmark.tensors['K_cache']  # Shape: (H, P+M, D)
-#         cache_V_simple = benchmark.tensors['V_cache']  # Shape: (H, P+M, D)
-#         simple_block = SimpleAttention(M, N, D, P, cache_K_simple, cache_V_simple, WQ, WK, WV).to(device=device)
-#         with torch.no_grad():
-#             for _ in range(10):
-#                 out = simple_block(X)
-#             torch.cuda.synchronize()
-        
-#             start_simple =torch.cuda.Event(enable_timing=True)
-#             end_simple = torch.cuda.Event(enable_timing=True)
-
-#             start_simple.record()
-#             for _ in range(ITER):
-#                 out = simple_block(X)
-#             end_simple.record()
-#             torch.cuda.synchronize()
-#             simple_time = start_simple.elapsed_time(end_simple)
-        
-#         print("\n" + "="*100)
-#         print("REFERENCE KERNELS TIME")
-#         print(f"GPU: {torch.cuda.get_device_name(device)}")
-#         print(f"TensorRT execution time: {rt_time / ITER:.3f} ms / iter")
-#         # print(f"PyTorch Flash Decoding execution time: {flash_time / ITER:.3f} ms / iter")
-#         print(f"Simple manual attention execution time: {simple_time / ITER:.3f} ms / iter")
-#         print("="*100)
-
 def main():
     """Main function to run Attacc IR benchmarks."""
     # Configuration
@@ -735,14 +625,7 @@ def main():
     START_EXPRESSIONS = 0
     NUM_EXPRESSIONS = 10  # Reduced for testing multiple configurations
     TOP_K = 5  # Number of best kernels to report
-    
-    # Define tensor shape candidates
-    # TENSOR_CONFIGS = [
-    #     {'M': 16, 'N': 1024, 'P': 512, 'R': 64},      # Original config
-    #     {'M': 32, 'N': 1024, 'P': 512, 'R': 64},      # Larger batch
-    #     {'M': 16, 'N': 2048, 'P': 1024, 'R': 128},    # Larger model
-    #     {'M': 8, 'N': 512, 'P': 256, 'R': 32},        # Smaller model
-    # ]
+
     with open(TENSOR_FILE, 'r') as f:
         TENSOR_CONFIGS = json.load(f)
 
@@ -754,10 +637,6 @@ def main():
     parser.add_argument('--end', action='store_true', help="Run from start ID to the last test case")
     parser.add_argument('--topk', type=int, default=TOP_K, help="Number of top kernels to report")
     parser.add_argument('--all', action='store_true', help="Run all configurations comprehensively")
-    
-    # Add options to customize tensor and block configs
-    # parser.add_argument('--tensor-configs', type=str, help="JSON file with tensor configurations")
-    # parser.add_argument('--block-configs', type=str, help="JSON file with block configurations")
 
     args = parser.parse_args()
     
@@ -776,15 +655,6 @@ def main():
         total_expressions = None  # None means no limit
     else:
         total_expressions = args.num
-
-    # Load custom configurations if provided
-    # if args.tensor_configs:
-        # with open(args.tensor_configs, 'r') as f:
-        #     TENSOR_CONFIGS = json.load(f)
-    
-    # if args.block_configs:
-        # with open(args.block_configs, 'r') as f:
-        #     BLOCK_CONFIGS = json.load(f)
     
     # Check CUDA availability
     if not torch.cuda.is_available():
@@ -808,7 +678,6 @@ def main():
     
     # Print comprehensive report
     print_comprehensive_report(all_results, args.topk)
-    # print_ref(TENSOR_CONFIGS, benchmark_instances)
 
 if __name__ == "__main__":
     main()

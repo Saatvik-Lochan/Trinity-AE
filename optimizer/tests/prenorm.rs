@@ -472,7 +472,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
 
     let expr_path = get_expressions_path();
     let semi_path = expr_path.join("semi/prenorm_falcon_cost6_kern1.json");
-    let output_path = expr_path.join("prenorm_falcon_cost6_kern1_wo_postprocess.txt");
+    let output_path = expr_path.join("prenorm_falcon_cost6_kern1.txt");
 
     match list_expressions_with_target_cost_v3_part1(&runner, semi_path.to_str().unwrap(), 6, 1) {
         Ok(count) => println!("Saved {} expressions", count),
