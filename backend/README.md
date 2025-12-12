@@ -15,16 +15,11 @@ backend/
 │   ├── IrParser.py         # IR expression parser
 │   ├── AstNode.py          # AST node definitions
 │   └── NodeType.py         # Node type enums
-├── evaluation/             # Evaluation configurations
-│   ├── vanilla/            # Vanilla attention configs
-│   ├── prenorm/            # Pre-normalization configs
-│   ├── qknorm/             # QK normalization configs
-│   ├── keyformer/          # Keyformer configs
-│   ├── roco/               # RoCo configs
-│   └── ffn/                # FFN configs
+├── evaluation/             # IR list & profiled results
 ├── scripts/                # Evaluation scripts
 │   ├── evaluate_all.sh     # Run all benchmarks
 │   └── evaluate_figure56.sh
+├── profile/                # Profile IR list & find optimal
 ├── results/                # Generated benchmark results
 ├── run_eval.py             # Main evaluation entry point
 ├── baselines.py            # Baseline implementations
@@ -48,24 +43,25 @@ Key dependencies:
 ### Convert IR to Triton and Run Benchmark
 
 ```bash
-# Basic format
-python run_eval.py --o {option} --m {model} --t {method} --n {case_number} --baseline {baseline} --print_output
+python run_eval.py [options]
 
 # Options:
-#   --o 0: Convert IR to Triton only
-#   --o 1: Run benchmark only (requires pre-generated Triton code)
-#   --o 2: Convert and run benchmark
-
-# Models: llama, falcon
-# Methods: vanilla, prenorm, qknorm, keyformer, roco, ffn
-# Baseline: tensorrt, pytorch(eager), torch inductor(max-autotune-no-cudagraphs), flashinfer, flashtensor
-# --print_output: If specified, prints the kernel output values (default: off)
+#   --o        : 0 = Convert IR to Triton only
+#                1 = Run benchmark only (requires pre-generated Triton code)
+#                2 = Convert and run benchmark
+#   --m        : Model type (llama, falcon)
+#   --t        : Architecture (vanilla, prenorm, qknorm, keyformer, roco, ffn)
+#   --n        : Case number for IR
+#   --baseline : Baselines to compare (trinity, tensorrt, pytorch, inductor, flashinfer, flashtensor)
+#                If not specified, all baselines are run by default
+#   --d        : CUDA device number (default: 0)
+#   --print_output : Print kernel output values (default: off)
 ```
 
 ### Examples
 
 ```bash
-# Convert and benchmark llama vanilla attention (case 946)
+# Convert and benchmark llama vanilla attention with all baselines
 python run_eval.py --o 2 --m llama --t vanilla --n 946
 
 # Convert and benchmark falcon ffn (case 2248)
@@ -81,13 +77,46 @@ python run_eval.py --o 2 --m llama --t vanilla --n 946 --baseline inductor
 ### Run for figure 4
 
 ```bash
-# Run all benchmarks for specific GPU (5090, A100, H100)
-./scripts/evaluate_all.sh 5090
+# Run all benchmarks
+# GPU: 5090, A100, H100
+./scripts/evaluate_all.sh {GPU}
 ```
 
 ### Run for figure5&6
 ```bash
 ./scripts/evaluate_figure56.sh
+```
+
+## IR List Profiling
+
+Profile multiple IR expressions from a file to find the best performing kernels. Pre-generated IR expression files from the optimizer are available in `evaluation/{architecture}/` for each architecture and model.
+
+### Usage
+```bash
+python profile/{method}_{model}_benchmark.py [options]
+
+# Options:
+#   --ir      : Path to the IR expressions file
+#   --output  : Path to save benchmark results (JSON)
+#   --start   : Start from specific test case ID (default: 0)
+#   --num     : Number of expressions to benchmark (default: 10)
+#   --end     : Run from start ID to the last test case
+#   --device  : CUDA device number (default: 0)
+#   --topk    : Number of top kernels to report (default: 5)
+#   --all     : Profiling all cases in the IR expressions file
+```
+
+### Examples
+```bash
+# Profile 100 IR expressions starting from ID 0
+python profile/vanilla_llama_benchmark.py --num 100 --device 0
+
+# Profile from ID 500 to the end
+python profile/ffn_falcon_benchmark.py --start 500 --end --device 1
+
+# Profile all IR expressions
+# Please use this command to find the best IR
+python profile/prenorm_llama_benchmark.py --all
 ```
 
 ## Input/Output
@@ -105,3 +134,5 @@ python run_eval.py --o 2 --m llama --t vanilla --n 946 --baseline inductor
 |--------|----|----|------|-----|
 | LLaMA  | 16 | 128 | 4096 | 32  |
 | Falcon | 16 | 64  | 4544 | 71  |
+
+You can modify tensor sizes by editing `model_configs.json`.

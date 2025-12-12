@@ -28,7 +28,7 @@ optimizer/
 │   └── gqa_vanilla.rs      # Grouped Query Attention
 ├── expressions/            # Generated expression outputs
 │   └── semi/               # Intermediate results (JSON)
-├── egg/                    # egg library (local fork)
+├── egg/                    # egg library for equality saturation(local fork)
 └── benchmark/              # Benchmark related files
 ```
 

@@ -6,22 +6,18 @@ import math
 import tensorrt as trt
 import tempfile
 import os
-# from flash_attn import flash_attn_qkvpacked_func, flash_attn_func, flash_attn_with_kvcache
-
-
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-torch.cuda.set_device(device)
-dtype = torch.float16
 
 class Vanilla(nn.Module):
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
-        
+        self.device = device
+        self.dtype = dtype
+
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -79,7 +75,7 @@ class Vanilla(nn.Module):
         return output
 
 class Vanilla_GQA(nn.Module):
-    def __init__(self, M, N, D, P, N_kv, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, N_kv, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
@@ -89,8 +85,10 @@ class Vanilla_GQA(nn.Module):
         self.N_kv = N_kv
         self.H_kv = N_kv // D
         self.group_size = self.H // self.H_kv
+        self.device = device
+        self.dtype = dtype
         self.kv_idx = torch.arange(self.H, device=device) // self.group_size
-        
+
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -140,14 +138,16 @@ class Vanilla_GQA(nn.Module):
         return output
 
 class PreNorm(nn.Module):
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
-        
+        self.device = device
+        self.dtype = dtype
+
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -197,14 +197,16 @@ class PreNorm(nn.Module):
         return output
 
 class KeyFormer(nn.Module):
-    def __init__(self, M, N, D, P, noise, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, noise, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
-        
+        self.device = device
+        self.dtype = dtype
+
         self.noise = noise.to(device=device, dtype=dtype)
 
         self.W_q = W_q.to(device=device, dtype=dtype)
@@ -261,13 +263,15 @@ class KeyFormer(nn.Module):
         return output, perturb_out
 
 class QKNorm(nn.Module):
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
+        self.device = device
+        self.dtype = dtype
 
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
@@ -319,13 +323,15 @@ class QKNorm(nn.Module):
         return output
 
 class RoCo(nn.Module):
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
+        self.device = device
+        self.dtype = dtype
 
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
@@ -377,15 +383,17 @@ class RoCo(nn.Module):
         return output, weights_sum, weights_sqr_sum
 
 class FFN(nn.Module):
-    def __init__(self, M, N, N4, WO=None, WFF1a=None, WFF1b=None, WFF2=None):
+    def __init__(self, M, N, N4, WO=None, WFF1a=None, WFF1b=None, WFF2=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.N4 = N4
-        self.WO = WO
-        self.WFF1a = WFF1a
-        self.WFF1b = WFF1b
-        self.WFF2 = WFF2
+        self.device = device
+        self.dtype = dtype
+        self.WO = WO.to(device=device, dtype=dtype)
+        self.WFF1a = WFF1a.to(device=device, dtype=dtype)
+        self.WFF1b = WFF1b.to(device=device, dtype=dtype)
+        self.WFF2 = WFF2.to(device=device, dtype=dtype)
     
     def forward(self, O2, X):
         attn_O1 = torch.matmul(O2, self.WO)
@@ -404,14 +412,16 @@ class FFN(nn.Module):
 
 class SimpleAttention(nn.Module):
     """Simple manual attention implementation for comparison"""
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
-        
+        self.device = device
+        self.dtype = dtype
+
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -450,16 +460,17 @@ class SimpleAttention(nn.Module):
         return output
 
 class TensorRT_Vanilla(nn.Module):
-    def __init__(self, M, N, D, H, cache_K, cache_V, P, W_q, W_k, W_v):
+    def __init__(self, M, N, D, H, cache_K, cache_V, P, W_q, W_k, W_v, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.H = H
         self.P = P  # Add P for cache length
+        self.device = device
+        self.dtype = dtype
         self.output = torch.empty(self.M, self.N, dtype=dtype, device=device)
 
-        # self.weight = nn.Parameter(torch.ones(H, dtype=dtype, device=device))
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -488,28 +499,10 @@ class TensorRT_Vanilla(nn.Module):
                 self.W_q = W_q
                 self.W_k = W_k
                 self.W_v = W_v
-                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
+                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1)
 
             def forward(self, X, cache_K, cache_V):
                 seq_len = X.shape[0]
-
-                # RMS Norm
-                # variance = X.pow(2).mean(-1, keepdim=True)
-                # X_normed = X * torch.rsqrt(variance)
-                # X_normed = self.weight * X_normed
-
-                # QKV projection using separate matrices
-                '''
-                F.linear(X, W) = X @ W.T
-                torch.matmul(X, W) = X @ W
-                '''
-                # q = F.linear(X_normed, self.W_q)
-                # k = F.linear(X_normed, self.W_k)
-                # v = F.linear(X_normed, self.W_v)
-
-                # q = torch.matmul(X, self.W_q)
-                # k = torch.matmul(X, self.W_k)
-                # v = torch.matmul(X, self.W_v)
 
                 qkv = torch.matmul(X, self.W_qkv)
                 q, k, v = torch.chunk(qkv, 3, dim=-1)
@@ -522,28 +515,11 @@ class TensorRT_Vanilla(nn.Module):
                 k = k.transpose(0, 1)
                 v = v.transpose(0, 1)
 
-                # k_cache = torch.cat([cache_K[:, :self.P, :, :], k], dim=1)
-                # v_cache = torch.cat([cache_V[:, :self.P, :, :], v], dim=1)
-                # cache_K[:, self.P:self.P+seq_len, :] = k
-                # cache_V[:, self.P:self.P+seq_len, :] = v
-
-                # scores = torch.matmul(q, cache_K.transpose(1, 2))
-                # weights = F.softmax(scores, dim=-1)
-
-                # output = torch.matmul(weights, cache_V)
-                # output = output.view(seq_len, self.H*self.D)
-
-                # k_cache = torch.cat([cache_K[:, :self.P, :], k], dim=1)
-                # v_cache = torch.cat([cache_V[:, :self.P, :], v], dim=1)
-
                 cache_K[:, self.P:self.P+seq_len, :] = k
                 cache_V[:, self.P:self.P+seq_len, :] = v
                 k_cache = cache_K
                 v_cache = cache_V
 
-
-                # scores = torch.matmul(q, k_cache.transpose(1, 2))
-                # weights = F.softmax(scores, dim=-1)
                 scores = torch.matmul(q, k_cache.transpose(1, 2))
                 scores_exp = torch.exp(scores)
                 scores_sum = torch.sum(scores_exp, dim=-1, keepdim=True)
@@ -552,13 +528,15 @@ class TensorRT_Vanilla(nn.Module):
                 output = torch.matmul(weights, v_cache)
                 output = output.permute(1, 0, 2)
                 output = output.contiguous().view(seq_len, self.H * self.D)
-                # output = output.view(seq_len, self.H*self.D)
 
                 return output
 
         onnx_file = tempfile.NamedTemporaryFile(suffix='.onnx', delete=False)
         onnx_path = onnx_file.name
         onnx_file.close()
+
+        device = self.device
+        dtype = self.dtype
 
         try:
             # Create model with proper scale and weights
@@ -571,10 +549,8 @@ class TensorRT_Vanilla(nn.Module):
                 self.W_k,
                 self.W_v
             )
-            # Copy weights from parent model
-            # model.weight.data = self.weight.data.clone()
             model = model.to(device)
-            
+
             # Dummy inputs for export
             seq_len = self.M
             dummy_X = torch.randn(seq_len, self.N, dtype=dtype, device=device)
@@ -645,7 +621,7 @@ class TensorRT_Vanilla(nn.Module):
         return self.output
     
 class TensorRT_Vanilla_GQA(nn.Module):
-    def __init__(self, M, N, D, H, N_kv, cache_K, cache_V, P, W_q, W_k, W_v):
+    def __init__(self, M, N, D, H, N_kv, cache_K, cache_V, P, W_q, W_k, W_v, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
@@ -655,9 +631,10 @@ class TensorRT_Vanilla_GQA(nn.Module):
         self.N_kv = N_kv
         self.H_kv = N_kv // D
         self.group_size = self.H // self.H_kv
+        self.device = device
+        self.dtype = dtype
         self.output = torch.empty(self.M, self.N, dtype=dtype, device=device)
 
-        # self.weight = nn.Parameter(torch.ones(H, dtype=dtype, device=device))
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -689,28 +666,10 @@ class TensorRT_Vanilla_GQA(nn.Module):
                 self.W_q = W_q
                 self.W_k = W_k
                 self.W_v = W_v
-                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
+                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1)
 
             def forward(self, X, cache_K, cache_V):
                 seq_len = X.shape[0]
-
-                # RMS Norm
-                # variance = X.pow(2).mean(-1, keepdim=True)
-                # X_normed = X * torch.rsqrt(variance)
-                # X_normed = self.weight * X_normed
-
-                # QKV projection using separate matrices
-                '''
-                F.linear(X, W) = X @ W.T
-                torch.matmul(X, W) = X @ W
-                '''
-                # q = F.linear(X_normed, self.W_q)
-                # k = F.linear(X_normed, self.W_k)
-                # v = F.linear(X_normed, self.W_v)
-
-                # q = torch.matmul(X, self.W_q)
-                # k = torch.matmul(X, self.W_k)
-                # v = torch.matmul(X, self.W_v)
 
                 qkv = torch.matmul(X, self.W_qkv)
                 q = qkv[:, :self.N]
@@ -725,20 +684,6 @@ class TensorRT_Vanilla_GQA(nn.Module):
                 k = k.transpose(0, 1)
                 v = v.transpose(0, 1)
 
-                # k_cache = torch.cat([cache_K[:, :self.P, :, :], k], dim=1)
-                # v_cache = torch.cat([cache_V[:, :self.P, :, :], v], dim=1)
-                # cache_K[:, self.P:self.P+seq_len, :] = k
-                # cache_V[:, self.P:self.P+seq_len, :] = v
-
-                # scores = torch.matmul(q, cache_K.transpose(1, 2))
-                # weights = F.softmax(scores, dim=-1)
-
-                # output = torch.matmul(weights, cache_V)
-                # output = output.view(seq_len, self.H*self.D)
-
-                # k_cache = torch.cat([cache_K[:, :self.P, :], k], dim=1)
-                # v_cache = torch.cat([cache_V[:, :self.P, :], v], dim=1)
-
                 k_expanded = k.repeat_interleave(self.group_size, dim=0)
                 v_expanded = v.repeat_interleave(self.group_size, dim=0)
                 cache_K[:, self.P:self.P+seq_len, :] = k_expanded
@@ -746,9 +691,6 @@ class TensorRT_Vanilla_GQA(nn.Module):
                 k_cache = cache_K
                 v_cache = cache_V
 
-
-                # scores = torch.matmul(q, k_cache.transpose(1, 2))
-                # weights = F.softmax(scores, dim=-1)
                 scores = torch.matmul(q, k_cache.transpose(1, 2))
                 scores_exp = torch.exp(scores)
                 scores_sum = torch.sum(scores_exp, dim=-1, keepdim=True)
@@ -757,13 +699,15 @@ class TensorRT_Vanilla_GQA(nn.Module):
                 output = torch.matmul(weights, v_cache)
                 output = output.permute(1, 0, 2)
                 output = output.contiguous().view(seq_len, self.H * self.D)
-                # output = output.view(seq_len, self.H*self.D)
 
                 return output
 
         onnx_file = tempfile.NamedTemporaryFile(suffix='.onnx', delete=False)
         onnx_path = onnx_file.name
         onnx_file.close()
+
+        device = self.device
+        dtype = self.dtype
 
         try:
             # Create model with proper scale and weights
@@ -777,10 +721,8 @@ class TensorRT_Vanilla_GQA(nn.Module):
                 self.W_k,
                 self.W_v
             )
-            # Copy weights from parent model
-            # model.weight.data = self.weight.data.clone()
             model = model.to(device)
-            
+
             # Dummy inputs for export
             seq_len = self.M
             dummy_X = torch.randn(seq_len, self.N, dtype=dtype, device=device)
@@ -851,16 +793,17 @@ class TensorRT_Vanilla_GQA(nn.Module):
         return self.output
 
 class TensorRT_PreNorm(nn.Module):
-    def __init__(self, M, N, D, H, cache_K, cache_V, P, W_q, W_k, W_v):
+    def __init__(self, M, N, D, H, cache_K, cache_V, P, W_q, W_k, W_v, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.H = H
         self.P = P
+        self.device = device
+        self.dtype = dtype
         self.output = torch.empty(self.M, self.N, dtype=dtype, device=device)
 
-        # self.weight = nn.Parameter(torch.ones(H, dtype=dtype, device=device))
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -889,18 +832,14 @@ class TensorRT_PreNorm(nn.Module):
                 self.W_q = W_q
                 self.W_k = W_k
                 self.W_v = W_v
-                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
+                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1)
 
             def forward(self, X, cache_K, cache_V):
                 seq_len = X.shape[0]
 
-                # RMS Norm
                 variance = X.pow(2).mean(-1, keepdim=True)
                 X_norm = X * torch.rsqrt(variance)
 
-                # q = torch.matmul(X_norm, self.W_q)
-                # k = torch.matmul(X_norm, self.W_k)
-                # v = torch.matmul(X_norm, self.W_v)
                 qkv = torch.matmul(X_norm, self.W_qkv)
                 q, k, v = torch.chunk(qkv, 3, dim=-1)
 
@@ -912,24 +851,16 @@ class TensorRT_PreNorm(nn.Module):
                 k = k.transpose(0, 1)
                 v = v.transpose(0, 1)
 
-                # k_cache = torch.cat([cache_K[:, :self.P, :], k], dim=1)
-                # v_cache = torch.cat([cache_V[:, :self.P, :], v], dim=1)
-
                 cache_K[:, self.P:self.P+seq_len, :] = k
                 cache_V[:, self.P:self.P+seq_len, :] = v
                 k_cache = cache_K
                 v_cache = cache_V
-
-                # scores = torch.matmul(q, k_cache.transpose(1, 2))
-                # weights = F.softmax(scores, dim=-1)
 
                 scores = torch.matmul(q, k_cache.transpose(1, 2))
                 scores_exp = torch.exp(scores)
                 scores_sum = torch.sum(scores_exp, dim=-1, keepdim=True)
                 weights = scores_exp / scores_sum
 
-                # output = torch.matmul(weights, v_cache)
-                # output = output.view(seq_len, self.H*self.D)
                 output = torch.matmul(weights, v_cache)
                 output = output.permute(1, 0, 2)
                 output = output.contiguous().view(seq_len, self.H * self.D)
@@ -940,8 +871,10 @@ class TensorRT_PreNorm(nn.Module):
         onnx_path = onnx_file.name
         onnx_file.close()
 
+        device = self.device
+        dtype = self.dtype
+
         try:
-            # Create model with proper scale and weights
             model = AttentionModel(
                 self.N,
                 self.D,
@@ -951,11 +884,8 @@ class TensorRT_PreNorm(nn.Module):
                 self.W_k,
                 self.W_v
             )
-            # Copy weights from parent model
-            # model.weight.data = self.weight.data.clone()
             model = model.to(device)
-            
-            # Dummy inputs for export
+
             seq_len = self.M
             dummy_X = torch.randn(seq_len, self.N, dtype=dtype, device=device)
             dummy_cache_K = self.cache_K.clone().to(device)
@@ -1027,17 +957,18 @@ class TensorRT_PreNorm(nn.Module):
         return self.output
 
 class TensorRT_KeyFormer(nn.Module):
-    def __init__(self, M, N, D, H, cache_K, cache_V, P, noise, W_q, W_k, W_v):
+    def __init__(self, M, N, D, H, cache_K, cache_V, P, noise, W_q, W_k, W_v, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.H = H
         self.P = P
+        self.device = device
+        self.dtype = dtype
         self.output = torch.empty(self.M, self.N, dtype=dtype, device=device)
         self.perturb_output = torch.empty(self.H, self.P+self.M, dtype=dtype, device=device)
 
-        # self.weight = nn.Parameter(torch.ones(H, dtype=dtype, device=device))
         self.noise = noise.to(device=device, dtype=dtype)
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
@@ -1064,7 +995,7 @@ class TensorRT_KeyFormer(nn.Module):
                 self.W_q = W_q
                 self.W_k = W_k
                 self.W_v = W_v
-                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
+                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1)
 
             def forward(self, X, cache_K, cache_V):
                 seq_len = X.shape[0]
@@ -1114,6 +1045,9 @@ class TensorRT_KeyFormer(nn.Module):
         onnx_file = tempfile.NamedTemporaryFile(suffix='.onnx', delete=False)
         onnx_path = onnx_file.name
         onnx_file.close()
+
+        device = self.device
+        dtype = self.dtype
 
         try:
             # Create model with proper scale and weights
@@ -1202,16 +1136,17 @@ class TensorRT_KeyFormer(nn.Module):
         return self.output
 
 class TensorRT_QKNorm(nn.Module):
-    def __init__(self, M, N, D, H, cache_K, cache_V, P, W_q, W_k, W_v):
+    def __init__(self, M, N, D, H, cache_K, cache_V, P, W_q, W_k, W_v, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.H = H
         self.P = P
+        self.device = device
+        self.dtype = dtype
         self.output = torch.empty(self.M, self.N, dtype=dtype, device=device)
 
-        # self.weight = nn.Parameter(torch.ones(H, dtype=dtype, device=device))
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -1240,7 +1175,7 @@ class TensorRT_QKNorm(nn.Module):
                 self.W_q = W_q
                 self.W_k = W_k
                 self.W_v = W_v
-                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
+                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1)
 
             def forward(self, X, cache_K, cache_V):
                 seq_len = X.shape[0]
@@ -1293,6 +1228,9 @@ class TensorRT_QKNorm(nn.Module):
         onnx_path = onnx_file.name
         onnx_file.close()
 
+        device = self.device
+        dtype = self.dtype
+
         try:
             # Create model with proper scale and weights
             model = AttentionModel(
@@ -1307,7 +1245,7 @@ class TensorRT_QKNorm(nn.Module):
             # Copy weights from parent model
             # model.weight.data = self.weight.data.clone()
             model = model.to(device)
-            
+
             # Dummy inputs for export
             seq_len = self.M
             dummy_X = torch.randn(seq_len, self.N, dtype=dtype, device=device)
@@ -1380,18 +1318,19 @@ class TensorRT_QKNorm(nn.Module):
         return self.output
 
 class TensorRT_RoCo(nn.Module):
-    def __init__(self, M, N, D, H, cache_K, cache_V, P, W_q, W_k, W_v):
+    def __init__(self, M, N, D, H, cache_K, cache_V, P, W_q, W_k, W_v, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.H = H
         self.P = P
+        self.device = device
+        self.dtype = dtype
         self.output = torch.empty(self.M, self.N, dtype=dtype, device=device)
         self.weights_sum = torch.empty(self.H, self.P+self.M, dtype=dtype, device=device)
         self.weights_sqr_sum = torch.empty(self.H, self.P+self.M, dtype=dtype, device=device)
 
-        # self.weight = nn.Parameter(torch.ones(H, dtype=dtype, device=device))
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
         self.W_v = W_v.to(device=device, dtype=dtype)
@@ -1420,7 +1359,7 @@ class TensorRT_RoCo(nn.Module):
                 self.W_q = W_q
                 self.W_k = W_k
                 self.W_v = W_v
-                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1).to(device=device, dtype=dtype)
+                self.W_qkv = torch.cat([self.W_q, self.W_k, self.W_v], dim=1)
 
             def forward(self, X, cache_K, cache_V):
                 seq_len = X.shape[0]
@@ -1470,6 +1409,9 @@ class TensorRT_RoCo(nn.Module):
         onnx_file = tempfile.NamedTemporaryFile(suffix='.onnx', delete=False)
         onnx_path = onnx_file.name
         onnx_file.close()
+
+        device = self.device
+        dtype = self.dtype
 
         try:
             # Create model with proper scale and weights
@@ -1558,15 +1500,17 @@ class TensorRT_RoCo(nn.Module):
         return self.output
 
 class TensorRT_FFN(nn.Module):
-    def __init__(self, M, N, N4, WO=None, WFF1a=None, WFF1b=None, WFF2=None):
+    def __init__(self, M, N, N4, WO=None, WFF1a=None, WFF1b=None, WFF2=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.N4 = N4
-        self.WO = WO
-        self.WFF1a = WFF1a
-        self.WFF1b = WFF1b
-        self.WFF2 = WFF2
+        self.device = device
+        self.dtype = dtype
+        self.WO = WO.to(device=device, dtype=dtype) if WO is not None else None
+        self.WFF1a = WFF1a.to(device=device, dtype=dtype) if WFF1a is not None else None
+        self.WFF1b = WFF1b.to(device=device, dtype=dtype) if WFF1b is not None else None
+        self.WFF2 = WFF2.to(device=device, dtype=dtype) if WFF2 is not None else None
 
         self.output = torch.empty((self.M, self.N), dtype=dtype, device=device)
 
@@ -1602,6 +1546,9 @@ class TensorRT_FFN(nn.Module):
         onnx_file = tempfile.NamedTemporaryFile(suffix='.onnx', delete=False)
         onnx_path = onnx_file.name
         onnx_file.close()
+
+        device = self.device
+        dtype = self.dtype
 
         try:
             model = TensorOpsModel(self.N, self.WO, self.WFF1a, self.WFF1b, self.WFF2)
@@ -1661,13 +1608,15 @@ class TensorRT_FFN(nn.Module):
 
 
 class FlashInfer_Vanilla(nn.Module):
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
+        self.device = device
+        self.dtype = dtype
 
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
@@ -1707,13 +1656,15 @@ class FlashInfer_Vanilla(nn.Module):
         return output
 
 class FlashInfer_PreNorm(nn.Module):
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
+        self.device = device
+        self.dtype = dtype
 
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
@@ -1752,15 +1703,17 @@ class FlashInfer_PreNorm(nn.Module):
         return output
 
 class FlashInfer_KeyFormer(nn.Module):
-    def __init__(self, M, N, D, P, noise, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, noise, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
+        self.device = device
+        self.dtype = dtype
 
-        self.noise = noise
+        self.noise = noise.to(device=device, dtype=dtype)
 
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
@@ -1805,13 +1758,15 @@ class FlashInfer_KeyFormer(nn.Module):
         return output
 
 class FlashInfer_QKNorm(nn.Module):
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
+        self.device = device
+        self.dtype = dtype
 
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)
@@ -1854,13 +1809,15 @@ class FlashInfer_QKNorm(nn.Module):
         return output
 
 class FlashInfer_RoCo(nn.Module):
-    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None):
+    def __init__(self, M, N, D, P, cache_K, cache_V, W_q=None, W_k=None, W_v=None, device=None, dtype=None):
         super().__init__()
         self.M = M
         self.N = N
         self.D = D
         self.P = P
         self.H = N // D
+        self.device = device
+        self.dtype = dtype
 
         self.W_q = W_q.to(device=device, dtype=dtype)
         self.W_k = W_k.to(device=device, dtype=dtype)

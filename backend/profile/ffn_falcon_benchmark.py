@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import torch
 import triton
 import time
@@ -5,8 +9,6 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional
 import tempfile
 import importlib.util
-import sys
-import os
 import traceback
 from dataclasses import dataclass
 from tqdm import tqdm
@@ -26,7 +28,7 @@ class BenchmarkResult:
     
     
 class FalconBenchmark:
-    def __init__(self, tensor_config: Dict[str, int]):
+    def __init__(self, tensor_config: Dict[str, int], device):
         """Initialize benchmark with given tensor configuration."""
         # Extract dimensions from config
         self.M = tensor_config['M']
@@ -75,7 +77,7 @@ class FalconBenchmark:
         self.const_dict = tensor_config.copy()
 
         # Setup device
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device(f'cuda:{device}' if torch.cuda.is_available() else 'cpu')
         torch.cuda.set_device(self.device)
         print(f"GPU: {torch.cuda.get_device_name(self.device)}")
             
@@ -413,7 +415,7 @@ class FalconBenchmark:
     
 
 
-def run_comprehensive_benchmark(tensor_configs, ir_file, start_expressions, num_expressions, top_k, output_file):
+def run_comprehensive_benchmark(tensor_configs, ir_file, start_expressions, num_expressions, top_k, output_file, device):
     """Run benchmarks for all tensor shape configurations."""
     all_results = []
     benchmark_instances = []
@@ -430,7 +432,7 @@ def run_comprehensive_benchmark(tensor_configs, ir_file, start_expressions, num_
         print(f"\nTensor Configuration {tensor_idx + 1}/{len(tensor_configs)}: M={tensor_config['M']}, N={tensor_config['N']}")
         
         # Initialize benchmark with this tensor configuration
-        benchmark = FalconBenchmark(tensor_config)
+        benchmark = FalconBenchmark(tensor_config, device)
         benchmark_instances.append(benchmark)
         
         try:
@@ -576,18 +578,20 @@ def main():
     # Configuration
     IR_FILE = "./evaluation/ffn/falcon_ffn_cost6_kern5_wo_scheduler2.txt"
     OUTPUT_FILE = "./evaluation/ffn/ffn_falcon.json"
-    TENSOR_FILE = "./evaluation/falcon_configs.json"
+    MODEL_CONFIG_FILE = "./model_configs.json"
     START_EXPRESSIONS = 0
     NUM_EXPRESSIONS = 10  # Reduced for testing multiple configurations
     TOP_K = 5  # Number of best kernels to report
 
-    with open(TENSOR_FILE, 'r') as f:
-        TENSOR_CONFIGS = json.load(f)
+    with open(MODEL_CONFIG_FILE, 'r') as f:
+        model_configs = json.load(f)
+    TENSOR_CONFIGS = [model_configs['falcon']]
 
     parser = argparse.ArgumentParser(description="Run comprehensive Attacc IR benchmarks")
     parser.add_argument('--ir', type=str, default=IR_FILE, help="Path to the IR expressions file")
     parser.add_argument('--output', type=str, default=OUTPUT_FILE, help="Path to save benchmark results")
     parser.add_argument('--start', type=int, default=START_EXPRESSIONS, help="Start from test case ID (e.g., 1881)")
+    parser.add_argument('--device', type=int, default=0, help="CUDA device number")
     parser.add_argument('--num', type=int, default=NUM_EXPRESSIONS, help="Number of expressions to benchmark")
     parser.add_argument('--end', action='store_true', help="Run from start ID to the last test case")
     parser.add_argument('--topk', type=int, default=TOP_K, help="Number of top kernels to report")
@@ -623,7 +627,8 @@ def main():
         args.start, 
         total_expressions, 
         args.topk,
-        args.output  # Pass output file for incremental saving
+        args.output,  # Pass output file for incremental saving
+        args.device
     )
     
     # Results are already saved incrementally, but save again for completeness
