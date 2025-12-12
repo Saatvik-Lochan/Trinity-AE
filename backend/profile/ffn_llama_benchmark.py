@@ -315,15 +315,6 @@ class LlamaBenchmark:
                 if (i + 1) % 10 == 0:
                     valid_so_far = sum(1 for r in results if r.error is None)
                     pbar.set_postfix(valid=valid_so_far, errors=len(results)-valid_so_far)
-                
-                # Clear Triton cache every 100 cases to prevent disk space issues
-                if (i + 1) % 100 == 0:
-                    self.clear_triton_cache()
-                    print(f"\n  Cleared Triton cache after {i + 1} cases")
-        
-        # Print immediate feedback for errors
-            # if result.error:
-            #     print(f"  IR {ir_id}: Error - {result.error[:100]}...")
 
         return results
     
@@ -390,30 +381,6 @@ class LlamaBenchmark:
             except:
                 pass
         self._temp_files = []
-    
-    def clear_triton_cache(self):
-        """Clear Triton's cache directory to free up disk space."""
-        try:
-            # Get Triton cache directory
-            triton_cache_dir = os.path.expanduser("~/.triton/cache")
-            
-            if os.path.exists(triton_cache_dir):
-                # Remove all files and subdirectories in the cache
-                for item in os.listdir(triton_cache_dir):
-                    item_path = os.path.join(triton_cache_dir, item)
-                    if os.path.isdir(item_path):
-                        shutil.rmtree(item_path)
-                    else:
-                        os.remove(item_path)
-                
-                print(f"  Successfully cleared Triton cache at {triton_cache_dir}")
-            else:
-                print(f"  Triton cache directory not found at {triton_cache_dir}")
-                
-        except Exception as e:
-            print(f"  Warning: Failed to clear Triton cache: {e}")
-    
-
 
 def run_comprehensive_benchmark(tensor_configs, ir_file, start_expressions, num_expressions, top_k, output_file, device):
     """Run benchmarks for all tensor shape configurations."""

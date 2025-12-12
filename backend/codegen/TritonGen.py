@@ -3330,24 +3330,28 @@ def {kernel_name}(
         # Check if we're storing to an exp tensor (fp32)
         exp_tensors = getattr(self, 'exp_tensors', set())
         current_tensor = getattr(self, 'current_store_tensor', None)
-        
-        # Check if either operand involves exp tensors
-        left_is_exp = self._contains_exp_tensor_load(left_child, exp_tensors)
-        right_is_exp = self._contains_exp_tensor_load(right_child, exp_tensors)
-        
-        # If storing to fp32 tensor or one operand is fp32, handle type conversion
-        if current_tensor and current_tensor in exp_tensors:
-            # Storing to fp32 tensor
-            if left_is_exp and not right_is_exp:
+
+        # Check if either operand is fp32:
+        # 1. Loaded from exp tensor (e.g., C_exp variable)
+        # 2. Contains exp operation directly (e.g., tl.exp(...) as operand)
+        left_is_fp32 = (self._contains_exp_tensor_load(left_child, exp_tensors) or
+                        self._contains_exp_operation(left_child))
+        right_is_fp32 = (self._contains_exp_tensor_load(right_child, exp_tensors) or
+                         self._contains_exp_operation(right_child))
+
+        # If either operand is fp32, match types for tl.dot
+        if left_is_fp32 or right_is_fp32 or (current_tensor and current_tensor in exp_tensors):
+            # At least one operand is fp32
+            if left_is_fp32 and not right_is_fp32:
                 # Left is fp32, convert right to fp32
                 right = f"{right}.to(tl.float32)"
-            elif right_is_exp and not left_is_exp:
+            elif right_is_fp32 and not left_is_fp32:
                 # Right is fp32, convert left to fp32
                 left = f"{left}.to(tl.float32)"
-            # If both are exp or neither, no conversion needed
+            # If both are fp32 or both are fp16, no conversion needed
             return f"tl.dot({left}, {right})"
         else:
-            # Storing to fp16 tensor
+            # Both operands are fp16, storing to fp16 tensor
             return f"tl.dot({left}, {right}).to(tl.float16)"
     
     def _generate_reduce_sum(self, node: ASTNode) -> str:
