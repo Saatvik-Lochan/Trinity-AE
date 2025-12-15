@@ -594,6 +594,8 @@ def print_comprehensive_report(all_results, top_k):
         print(f"   Tensor Config: M={result.tensor_config['M']}, N={result.tensor_config['N']}")
         print(f"   Expression: {result.ir_expression[:100]}...")
 
+    return overall_best
+
 def save_top_k_results(top_results, output_file):
     """Save top k results to a JSON file."""
     data = []
@@ -676,7 +678,7 @@ def main():
     
     # Print comprehensive report
     final_result = print_comprehensive_report(all_results, args.topk)
-    final_output = args.output.replace('.json', '_topk.json')
+    final_output = args.output.replace('.json', f'_top{args.topk}.json')
     save_top_k_results(final_result, final_output)
 
 if __name__ == "__main__":
