@@ -16,7 +16,7 @@ def main():
     torch.cuda.set_device(device)
     dtype = torch.float16
 
-    output_file = f"./figure56/{target}/{target}_{num}.py"
+    output_file = f"figure67/{target}/{target}_{num}.py"
     module_name = f"{target}_{model}_best"
 
     # Load model config from JSON
