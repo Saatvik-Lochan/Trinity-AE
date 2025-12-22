@@ -5,8 +5,6 @@ use crate::language::TileLang;
 use egg::*;
 use std::collections::HashMap;
 
-const MAX_ITER: usize = 10;
-
 pub fn run_until_saturated(
     expr: &str,
     rules: Vec<Rewrite<TileLang, LoopAnalysis>>,

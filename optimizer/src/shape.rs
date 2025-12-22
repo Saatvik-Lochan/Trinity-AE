@@ -1,5 +1,4 @@
 // Track tensor/tile shape
-use egg::*;
 use std::collections::HashMap;
 
 // Represents a dimension that can be either concrete or wildcard
