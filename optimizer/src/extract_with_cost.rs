@@ -1,19 +1,15 @@
-use egg::*;
-use std::collections::HashSet;
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use crate::utils::*;
-use crate::language::*;
 use crate::cost::*;
 use crate::extract::*;
-use num_bigint::BigUint;
-use std::str::FromStr;
-use std::fs::File;
-use std::io::Write;
+use crate::language::*;
+use crate::utils::*;
+use egg::*;
+use json::{object, JsonValue};
+use rayon::prelude::*;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::fs;
 use std::io;
-use json::{JsonValue, object, array};
-use rayon::prelude::*;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 const MAX_DEPTH: usize = 100;
@@ -26,11 +22,14 @@ pub struct KernelCost {
 
 impl KernelCost {
     pub fn new(cost: usize, num_kernel: usize) -> Self {
-        KernelCost { cost, num_kernel}
+        KernelCost { cost, num_kernel }
     }
 
     pub fn zero() -> Self {
-        KernelCost { cost: 0, num_kernel: 0}
+        KernelCost {
+            cost: 0,
+            num_kernel: 0,
+        }
     }
 
     pub fn add(&self, other: &KernelCost) -> KernelCost {
@@ -50,14 +49,16 @@ impl KernelCost {
             num_kernel: self.num_kernel
         }
     }
-    
+
     // Parse from JSON object
     fn from_json(json: &JsonValue) -> Result<Self, String> {
-        let cost = json["cost"].as_usize()
+        let cost = json["cost"]
+            .as_usize()
             .ok_or("Missing or invalid 'cost' field")?;
-        let num_kernel = json["num_kernel"].as_usize()
+        let num_kernel = json["num_kernel"]
+            .as_usize()
             .ok_or("Missing or invalid 'num_kernel' field")?;
-        
+
         Ok(KernelCost::new(cost, num_kernel))
     }
 }
@@ -76,14 +77,16 @@ impl NodeChoice {
             enode_index: self.enode_index
         }
     }
-    
+
     // Parse from JSON object
     fn from_json(json: &JsonValue) -> Result<Self, String> {
-        let eclass_id = json["eclass_id"].as_usize()
+        let eclass_id = json["eclass_id"]
+            .as_usize()
             .ok_or("Missing or invalid 'eclass_id' field")?;
-        let enode_index = json["enode_index"].as_usize()
+        let enode_index = json["enode_index"]
+            .as_usize()
             .ok_or("Missing or invalid 'enode_index' field")?;
-        
+
         Ok(NodeChoice {
             eclass_id: egg::Id::from(eclass_id),
             enode_index,
@@ -105,22 +108,23 @@ impl SemiExpressionResult {
         for choice in &self.choices {
             choices_json.push(choice.to_json()).unwrap();
         }
-        
+
         object! {
             semi_expression: self.semi_expression.clone(),
             cost: self.cost.to_json(),
             choices: choices_json
         }
     }
-    
+
     // Parse from JSON object
     fn from_json(json: &JsonValue) -> Result<Self, String> {
-        let semi_expression = json["semi_expression"].as_str()
+        let semi_expression = json["semi_expression"]
+            .as_str()
             .ok_or("Missing or invalid 'semi_expression' field")?
             .to_string();
-        
+
         let cost = KernelCost::from_json(&json["cost"])?;
-        
+
         let mut choices = Vec::new();
         if json["choices"].is_array() {
             for i in 0..json["choices"].len() {
@@ -129,7 +133,7 @@ impl SemiExpressionResult {
                 choices.push(NodeChoice::from_json(choice_json)?);
             }
         }
-        
+
         Ok(SemiExpressionResult {
             semi_expression,
             cost,
@@ -150,19 +154,19 @@ pub fn enumerate_expressions_with_target_cost_v2(
     // let extractor = Extractor::new(egraph, AstSize);
     let extractor = create_extractor(egraph);
     let cost_model = TileCostModel::new();
-    
+
     let expr_pairs = enumerate_recursive_with_cost_v2(
-        egraph, 
-        eclass_id, 
-        &mut visited, 
-        0, 
-        None, 
-        0, 
+        egraph,
+        eclass_id,
+        &mut visited,
+        0,
+        None,
+        0,
         &extractor,
         &cost_model,
         max_cost,
         max_num_kernel,
-        0, // loop level
+        0,     // loop level
         false, // should_sequential
     );
 
@@ -183,7 +187,7 @@ pub fn enumerate_recursive_with_cost_v2(
     max_num_kernel: usize,
     loop_level: usize,
     should_sequential: bool,
-) -> Vec<(SemiExpressionResult)> {
+) -> Vec<SemiExpressionResult> {
     // Original implementation - filter on first visit
     // if visited.contains(&eclass_id) {
     //     let (best_cost, best_expr) = extractor.find_best(eclass_id);
@@ -197,7 +201,7 @@ pub fn enumerate_recursive_with_cost_v2(
     //         return vec![];
     //     }
     // }
-    
+
     // New implementation - allow one cycle before filtering
     let visit_count = visited.get(&eclass_id).copied().unwrap_or(0);
     if visit_count >= 1 {
@@ -207,22 +211,18 @@ pub fn enumerate_recursive_with_cost_v2(
                 semi_expression: format!("{}", best_expr),
                 cost: KernelCost::new(best_cost, 0),
                 choices: vec![],
-            }]
+            }];
         } else {
             return vec![];
         }
     }
 
     if depth > MAX_DEPTH {
-        return if max_cost >= 0 {
-            vec![SemiExpressionResult {
-                semi_expression: format!("depth_limit"),
-                cost: KernelCost::zero(),
-                choices: vec![],
-            }]
-        } else {
-            vec![]
-        };
+        return vec![SemiExpressionResult {
+            semi_expression: format!("depth_limit"),
+            cost: KernelCost::zero(),
+            choices: vec![],
+        }];
     }
 
     // Increment visit count
@@ -236,12 +236,12 @@ pub fn enumerate_recursive_with_cost_v2(
             // Calculate kernel count for Store node
             let store_kernel_count = if loop_level == 0 { 1 } else { 0 };
             let store_cost_struct = KernelCost::new(0, store_kernel_count);
-            
+
             // Check if within limits
             if !store_cost_struct.is_within_limits(max_cost, max_num_kernel) {
                 continue;
             }
-            
+
             let choice = NodeChoice {
                 eclass_id,
                 enode_index,
@@ -266,7 +266,7 @@ pub fn enumerate_recursive_with_cost_v2(
         if let TileLang::TLoop(_) = enode {
             continue;
         }
-        
+
         if should_skip_seq_for_commutativity(egraph, eclass_id, enode) {
             continue;
         }
@@ -281,9 +281,13 @@ pub fn enumerate_recursive_with_cost_v2(
         // Calculate kernel count for this node
         let node_kernel_count = match enode {
             TileLang::Loop(_) | TileLang::Store(_) => {
-                if loop_level == 0 { 1 } else { 0 }
-            },
-            _ => 0
+                if loop_level == 0 {
+                    1
+                } else {
+                    0
+                }
+            }
+            _ => 0,
         };
 
         let node_cost_struct = KernelCost::new(node_cost, node_kernel_count);
@@ -298,7 +302,7 @@ pub fn enumerate_recursive_with_cost_v2(
         };
 
         let (new_loop_level, new_should_sequential) = match enode {
-            TileLang::Loop(_) => (loop_level+1, should_sequential),
+            TileLang::Loop(_) => (loop_level + 1, should_sequential),
             TileLang::Seq(_) => (loop_level, true),
             _ => (loop_level, should_sequential),
         };
@@ -322,7 +326,7 @@ pub fn enumerate_recursive_with_cost_v2(
                     egraph,
                     child_id,
                     visited,
-                    depth+1,
+                    depth + 1,
                     Some(enode),
                     index,
                     extractor,
@@ -353,7 +357,8 @@ pub fn enumerate_recursive_with_cost_v2(
                     }
 
                     if total_cost.is_within_limits(max_cost, max_num_kernel) {
-                        let child_exprs: Vec<String> = combo.iter()
+                        let child_exprs: Vec<String> = combo
+                            .iter()
                             .map(|result| result.semi_expression.clone())
                             .collect();
                         let expr_str = format_enode_with_children(enode, &child_exprs);
@@ -363,7 +368,6 @@ pub fn enumerate_recursive_with_cost_v2(
                             cost: total_cost,
                             choices: all_choices,
                         });
-
                     }
                 }
             }
@@ -378,16 +382,26 @@ pub fn reconstruct_full_expression_naive(
     root_id: Id,
     choices: &[NodeChoice],
 ) -> Vec<String> {
-
     let mut visited = HashSet::new();
     let extractor = create_extractor(egraph);
     let mut loop_variables = HashSet::new();
 
-    let choice_map: HashMap<Id, usize> = choices.iter()
+    let choice_map: HashMap<Id, usize> = choices
+        .iter()
         .map(|choice| (choice.eclass_id, choice.enode_index))
         .collect();
-    
-    reconstruct_full_recursive_naive(egraph, root_id, &mut visited, 0, None, 0, &extractor, &choice_map, &mut loop_variables)
+
+    reconstruct_full_recursive_naive(
+        egraph,
+        root_id,
+        &mut visited,
+        0,
+        None,
+        0,
+        &extractor,
+        &choice_map,
+        &mut loop_variables,
+    )
 }
 
 pub fn reconstruct_full_recursive_naive(
@@ -425,7 +439,6 @@ pub fn reconstruct_full_recursive_naive(
             TileLang::Tile(var_id) => {
                 let Some(var_name) = get_var_string(egraph, *var_id) else {
                     panic!("failed to get var string {}", var_id);
-                    continue;
                 };
                 if !loop_variables.contains(&var_name) {
                     continue;
@@ -434,7 +447,6 @@ pub fn reconstruct_full_recursive_naive(
             TileLang::Elem(var_id) => {
                 let Some(var_name) = get_var_string(egraph, *var_id) else {
                     panic!("failed to get var string {}", var_id);
-                    continue;
                 };
                 if !loop_variables.contains(&var_name) {
                     continue;
@@ -445,7 +457,8 @@ pub fn reconstruct_full_recursive_naive(
 
         if let TileLang::Seq(_) = enode {
             if let Some(TileLang::Seq(_)) = parent_node {
-                if child_index == 0 { // Left child (index 0)
+                if child_index == 0 {
+                    // Left child (index 0)
                     continue;
                 }
             }
@@ -459,7 +472,8 @@ pub fn reconstruct_full_recursive_naive(
             continue;
         }
 
-        let loop_var_to_add = if let TileLang::Loop([_start, _end, _tile, loop_var, _body]) = enode {
+        let loop_var_to_add = if let TileLang::Loop([_start, _end, _tile, loop_var, _body]) = enode
+        {
             get_var_string(egraph, *loop_var)
         } else {
             None
@@ -472,7 +486,6 @@ pub fn reconstruct_full_recursive_naive(
             let mut child_expressions = Vec::new();
             let mut all_children_valid = true;
             for (index, &child_id) in children.iter().enumerate() {
-
                 if let Some(ref var) = loop_var_to_add {
                     loop_variables.insert(var.clone());
                 }
@@ -481,7 +494,7 @@ pub fn reconstruct_full_recursive_naive(
                     egraph,
                     child_id,
                     visited,
-                    depth+1,
+                    depth + 1,
                     Some(enode),
                     index,
                     extractor,
@@ -626,16 +639,26 @@ pub fn reconstruct_full_expression_all(
     root_id: Id,
     choices: &[NodeChoice],
 ) -> Vec<String> {
-
     let mut visited = HashSet::new();
     let extractor = create_extractor(egraph);
     let mut loop_variables = HashSet::new();
 
-    let choice_map: HashMap<Id, usize> = choices.iter()
+    let choice_map: HashMap<Id, usize> = choices
+        .iter()
         .map(|choice| (choice.eclass_id, choice.enode_index))
         .collect();
-    
-    reconstruct_full_recursive_all(egraph, root_id, &mut visited, 0, None, 0, &extractor, &choice_map, &mut loop_variables)
+
+    reconstruct_full_recursive_all(
+        egraph,
+        root_id,
+        &mut visited,
+        0,
+        None,
+        0,
+        &extractor,
+        &choice_map,
+        &mut loop_variables,
+    )
 }
 
 pub fn reconstruct_full_recursive_all(
@@ -662,18 +685,18 @@ pub fn reconstruct_full_recursive_all(
     let mut results = Vec::new();
     let eclass = &egraph[eclass_id];
 
-    let enodes_to_explore: Vec<(usize, &TileLang)> = if let Some(&chosen_enode_index) = choice_constraints.get(&eclass_id) {
-        vec![(chosen_enode_index, &eclass.nodes[chosen_enode_index])]
-    } else {
-        eclass.nodes.iter().enumerate().collect()
-    };
+    let enodes_to_explore: Vec<(usize, &TileLang)> =
+        if let Some(&chosen_enode_index) = choice_constraints.get(&eclass_id) {
+            vec![(chosen_enode_index, &eclass.nodes[chosen_enode_index])]
+        } else {
+            eclass.nodes.iter().enumerate().collect()
+        };
 
-    for (enode_index, enode) in enodes_to_explore {
+    for (_enode_index, enode) in enodes_to_explore {
         match enode {
             TileLang::Tile(var_id) => {
                 let Some(var_name) = get_var_string(egraph, *var_id) else {
                     panic!("failed to get var string {}", var_id);
-                    continue;
                 };
                 if !loop_variables.contains(&var_name) {
                     continue;
@@ -682,7 +705,6 @@ pub fn reconstruct_full_recursive_all(
             TileLang::Elem(var_id) => {
                 let Some(var_name) = get_var_string(egraph, *var_id) else {
                     panic!("failed to get var string {}", var_id);
-                    continue;
                 };
                 if !loop_variables.contains(&var_name) {
                     continue;
@@ -693,7 +715,8 @@ pub fn reconstruct_full_recursive_all(
 
         if let TileLang::Seq(_) = enode {
             if let Some(TileLang::Seq(_)) = parent_node {
-                if child_index == 0 { // Left child (index 0)
+                if child_index == 0 {
+                    // Left child (index 0)
                     continue;
                 }
             }
@@ -707,7 +730,8 @@ pub fn reconstruct_full_recursive_all(
             continue;
         }
 
-        let loop_var_to_add = if let TileLang::Loop([_start, _end, _tile, loop_var, _body]) = enode {
+        let loop_var_to_add = if let TileLang::Loop([_start, _end, _tile, loop_var, _body]) = enode
+        {
             get_var_string(egraph, *loop_var)
         } else {
             None
@@ -720,7 +744,6 @@ pub fn reconstruct_full_recursive_all(
             let mut child_expressions = Vec::new();
             let mut all_children_valid = true;
             for (index, &child_id) in children.iter().enumerate() {
-
                 if let Some(ref var) = loop_var_to_add {
                     loop_variables.insert(var.clone());
                 }
@@ -729,7 +752,7 @@ pub fn reconstruct_full_recursive_all(
                     egraph,
                     child_id,
                     visited,
-                    depth+1,
+                    depth + 1,
                     Some(enode),
                     index,
                     extractor,
@@ -770,17 +793,17 @@ pub fn create_egraph_from_semi_expression(
     root_eclass_id: Id,
 ) -> (EGraph, Id) {
     let mut new_egraph = EGraph::new(LoopAnalysis);
-    
+
     // Create a map of eclass_id -> chosen enode_index from the choices
     let mut choices_map: HashMap<Id, usize> = HashMap::new();
     for choice in &semi_result.choices {
         choices_map.insert(choice.eclass_id, choice.enode_index);
     }
-    
+
     // Use all eclasses from the original egraph to avoid missing dependencies
     // let all_eclasses: Vec<Id> = original_egraph.classes().map(|c| c.id).collect();
     let all_eclasses = find_reachable_eclasses(original_egraph, root_eclass_id, &choices_map);
-    
+
     // Create mapping using unique dummy nodes for each eclass
     let mut old_to_new_id: HashMap<Id, Id> = HashMap::new();
     for (i, &eclass_id) in all_eclasses.iter().enumerate() {
@@ -789,12 +812,12 @@ pub fn create_egraph_from_semi_expression(
         let new_id = new_egraph.add_uncanonical(TileLang::Var(dummy_var_name.parse().unwrap()));
         old_to_new_id.insert(eclass_id, new_id);
     }
-    
+
     // Now add the actual nodes to each eclass
     for &eclass_id in &all_eclasses {
         let class = &original_egraph[eclass_id];
         let new_class_id = old_to_new_id[&eclass_id];
-        
+
         if let Some(&chosen_index) = choices_map.get(&eclass_id) {
             // Add only the chosen node
             if chosen_index < class.nodes.len() {
@@ -814,23 +837,23 @@ pub fn create_egraph_from_semi_expression(
             }
         }
     }
-    
+
     new_egraph.rebuild();
-    
+
     // Copy tensor shape information from original egraph
     for &eclass_id in &all_eclasses {
         let original_class = &original_egraph[eclass_id];
         let new_class_id = old_to_new_id[&eclass_id];
-        
+
         // If the original eclass has shape information, copy it to the new egraph
         if let Some(tensor_shape) = &original_class.data.tensor_shape {
             let new_class = &mut new_egraph[new_class_id];
             new_class.data.tensor_shape = Some(tensor_shape.clone());
         }
     }
-    
+
     new_egraph.rebuild();
-    
+
     let new_root_id = old_to_new_id[&root_eclass_id];
     (new_egraph, new_root_id)
 }
@@ -874,154 +897,89 @@ fn find_reachable_eclasses(
 
 fn update_node_children(node: &TileLang, old_to_new_id: &HashMap<Id, Id>) -> TileLang {
     match node {
-        TileLang::Loop(children) => {
-            TileLang::Loop([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-                old_to_new_id[&children[2]],
-                old_to_new_id[&children[3]],
-                old_to_new_id[&children[4]],
-            ])
-        },
-        TileLang::DLoop(children) => {
-            TileLang::Loop([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-                old_to_new_id[&children[2]],
-                old_to_new_id[&children[3]],
-                old_to_new_id[&children[4]],
-            ])
-        },
-        TileLang::Input(child) => {
-            TileLang::Input(old_to_new_id[child])
-        },
-        TileLang::Output(child) => {
-            TileLang::Output(old_to_new_id[child])
-        },
-        TileLang::Tensor(child) => {
-            TileLang::Tensor(old_to_new_id[child])
-        },
-        TileLang::Tile(child) => {
-            TileLang::Tile(old_to_new_id[child])
-        },
+        TileLang::Loop(children) => TileLang::Loop([
+            old_to_new_id[&children[0]],
+            old_to_new_id[&children[1]],
+            old_to_new_id[&children[2]],
+            old_to_new_id[&children[3]],
+            old_to_new_id[&children[4]],
+        ]),
+        TileLang::DLoop(children) => TileLang::Loop([
+            old_to_new_id[&children[0]],
+            old_to_new_id[&children[1]],
+            old_to_new_id[&children[2]],
+            old_to_new_id[&children[3]],
+            old_to_new_id[&children[4]],
+        ]),
+        TileLang::Input(child) => TileLang::Input(old_to_new_id[child]),
+        TileLang::Output(child) => TileLang::Output(old_to_new_id[child]),
+        TileLang::Tensor(child) => TileLang::Tensor(old_to_new_id[child]),
+        TileLang::Tile(child) => TileLang::Tile(old_to_new_id[child]),
         TileLang::ConstTile(children) => {
-            TileLang::ConstTile([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
-        TileLang::Elem(child) => {
-            TileLang::Elem(old_to_new_id[child])
-        },
+            TileLang::ConstTile([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
+        TileLang::Elem(child) => TileLang::Elem(old_to_new_id[child]),
         TileLang::Index(children) => {
-            let updated_children: Vec<Id> = children.iter()
+            let updated_children: Vec<Id> = children
+                .iter()
                 .map(|&child| old_to_new_id[&child])
                 .collect();
             TileLang::Index(updated_children.into_boxed_slice())
-        },
+        }
         TileLang::Load(children) => {
-            TileLang::Load([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
-        TileLang::Store(children) => {
-            TileLang::Store([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-                old_to_new_id[&children[2]],
-            ])
-        },
+            TileLang::Load([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
+        TileLang::Store(children) => TileLang::Store([
+            old_to_new_id[&children[0]],
+            old_to_new_id[&children[1]],
+            old_to_new_id[&children[2]],
+        ]),
         TileLang::Seq(children) => {
-            TileLang::Seq([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
-        TileLang::Const(child) => {
-            TileLang::Const(old_to_new_id[child])
-        },
+            TileLang::Seq([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
+        TileLang::Const(child) => TileLang::Const(old_to_new_id[child]),
         TileLang::Add(children) => {
-            TileLang::Add([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
+            TileLang::Add([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
         TileLang::Sub(children) => {
-            TileLang::Sub([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
+            TileLang::Sub([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
         TileLang::Mul(children) => {
-            TileLang::Mul([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
+            TileLang::Mul([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
         TileLang::Div(children) => {
-            TileLang::Div([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
-        TileLang::Exp(child) => {
-            TileLang::Exp(old_to_new_id[child])
-        },
-        TileLang::Sqr(child) => {
-            TileLang::Sqr(old_to_new_id[child])
-        },
-        TileLang::Sqrt(child) => {
-            TileLang::Sqrt(old_to_new_id[child])
-        },
-        TileLang::Sigmoid(child) => {
-            TileLang::Sigmoid(old_to_new_id[child])
-        },
+            TileLang::Div([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
+        TileLang::Exp(child) => TileLang::Exp(old_to_new_id[child]),
+        TileLang::Sqr(child) => TileLang::Sqr(old_to_new_id[child]),
+        TileLang::Sqrt(child) => TileLang::Sqrt(old_to_new_id[child]),
+        TileLang::Sigmoid(child) => TileLang::Sigmoid(old_to_new_id[child]),
         TileLang::Matmul(children) => {
-            TileLang::Matmul([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
+            TileLang::Matmul([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
         TileLang::ReduceSum(children) => {
-            TileLang::ReduceSum([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
-        TileLang::Concat(children) => {
-            TileLang::Concat([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-                old_to_new_id[&children[2]],
-            ])
-        },
+            TileLang::ReduceSum([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
+        TileLang::Concat(children) => TileLang::Concat([
+            old_to_new_id[&children[0]],
+            old_to_new_id[&children[1]],
+            old_to_new_id[&children[2]],
+        ]),
         TileLang::Broadcast(children) => {
-            TileLang::Broadcast([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
-        TileLang::Permute3(children) => {
-            TileLang::Permute3([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-                old_to_new_id[&children[2]],
-                old_to_new_id[&children[3]],
-            ])
-        },
+            TileLang::Broadcast([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
+        TileLang::Permute3(children) => TileLang::Permute3([
+            old_to_new_id[&children[0]],
+            old_to_new_id[&children[1]],
+            old_to_new_id[&children[2]],
+            old_to_new_id[&children[3]],
+        ]),
         TileLang::Squeeze(children) => {
-            TileLang::Squeeze([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
+            TileLang::Squeeze([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
         TileLang::Unsqueeze(children) => {
-            TileLang::Unsqueeze([
-                old_to_new_id[&children[0]],
-                old_to_new_id[&children[1]],
-            ])
-        },
+            TileLang::Unsqueeze([old_to_new_id[&children[0]], old_to_new_id[&children[1]]])
+        }
         // Leaf nodes (no children)
         TileLang::FullTile => TileLang::FullTile,
         TileLang::Dummy => TileLang::Dummy,
@@ -1042,25 +1000,23 @@ pub fn enumerate_expressions_with_target_cost(
     // let extractor = Extractor::new(egraph, AstSize);
     let extractor = create_extractor(egraph);
     let cost_model = TileCostModel::new();
-    
+
     let expr_pairs = enumerate_recursive_with_cost(
-        egraph, 
-        eclass_id, 
-        &mut visited, 
-        0, 
-        None, 
-        0, 
+        egraph,
+        eclass_id,
+        &mut visited,
+        0,
+        None,
+        0,
         &extractor,
         &cost_model,
         max_cost,
         max_num_kernel,
-        0, // loop level
+        0,     // loop level
         false, // should_sequential
     );
 
-    expr_pairs.into_iter()
-        .map(|(expr, _)| expr)
-        .collect()
+    expr_pairs.into_iter().map(|(expr, _)| expr).collect()
 }
 
 pub fn enumerate_recursive_with_cost(
@@ -1077,7 +1033,6 @@ pub fn enumerate_recursive_with_cost(
     loop_level: usize,
     should_sequential: bool,
 ) -> Vec<(String, KernelCost)> {
-
     // Handle cycles - allow only once
     if visited.contains(&eclass_id) {
         // Only return best expression if current cost is within limit
@@ -1091,11 +1046,7 @@ pub fn enumerate_recursive_with_cost(
 
     // Depth limit
     if depth > MAX_DEPTH {
-        return if max_cost >= 0 {
-            vec![(format!("depth_limit"), KernelCost::zero())]
-        } else {
-            vec![]
-        };
+        return vec![(format!("depth_limit"), KernelCost::zero())];
     }
 
     visited.insert(eclass_id);
@@ -1121,7 +1072,7 @@ pub fn enumerate_recursive_with_cost(
         if let TileLang::TLoop(_) = enode {
             continue;
         }
-        
+
         if should_skip_seq_for_commutativity(egraph, eclass_id, enode) {
             continue;
         }
@@ -1135,7 +1086,11 @@ pub fn enumerate_recursive_with_cost(
 
         // Calculate kernel count for this node
         let node_kernel_count = if let TileLang::Loop(_) = enode {
-            if loop_level == 0 { 1 } else { 0 }
+            if loop_level == 0 {
+                1
+            } else {
+                0
+            }
         } else {
             0
         };
@@ -1147,7 +1102,7 @@ pub fn enumerate_recursive_with_cost(
 
         // Determine new loop level and should sequential
         let (new_loop_level, new_should_sequential) = match enode {
-            TileLang::Loop(_) => (loop_level+1, should_sequential),
+            TileLang::Loop(_) => (loop_level + 1, should_sequential),
             TileLang::Seq(_) => (loop_level, true),
             _ => (loop_level, should_sequential),
         };
@@ -1163,13 +1118,13 @@ pub fn enumerate_recursive_with_cost(
             let remaining_kernel = max_num_kernel - node_kernel_count;
             let mut child_expr_cost_pairs = Vec::new();
             let mut all_children_valid = true;
-            
+
             for (index, &child_id) in children.iter().enumerate() {
-                let child_pairs  = enumerate_recursive_with_cost(
-                    egraph, 
-                    child_id, 
-                    visited, 
-                    depth + 1, 
+                let child_pairs = enumerate_recursive_with_cost(
+                    egraph,
+                    child_id,
+                    visited,
+                    depth + 1,
                     Some(enode),
                     index,
                     extractor,
@@ -1179,15 +1134,15 @@ pub fn enumerate_recursive_with_cost(
                     new_loop_level,
                     new_should_sequential,
                 );
-                
+
                 if child_pairs.is_empty() {
                     all_children_valid = false;
                     break;
                 }
-                
+
                 child_expr_cost_pairs.push(child_pairs);
             }
-            
+
             // Only generate combinations if all children have valid expressions
             if all_children_valid {
                 let combinations = cartesian_product(&child_expr_cost_pairs);
@@ -1198,9 +1153,8 @@ pub fn enumerate_recursive_with_cost(
                     }
 
                     if total_cost.is_within_limits(max_cost, max_num_kernel) {
-                        let child_exprs: Vec<String> = combo.iter()
-                            .map(|(expr, _)| expr.clone())
-                            .collect();
+                        let child_exprs: Vec<String> =
+                            combo.iter().map(|(expr, _)| expr.clone()).collect();
                         let expr_str = format_enode_with_children(enode, &child_exprs);
                         results.push((expr_str, total_cost));
                     }
@@ -1239,17 +1193,15 @@ pub fn list_expressions_with_target_cost_v2(
     let max_cost = 3;
     let max_num_kernel = 1;
 
-    let semi_results = enumerate_expressions_with_target_cost_v2(
-        egraph, root_id, max_cost, max_num_kernel
-    );
+    let semi_results =
+        enumerate_expressions_with_target_cost_v2(egraph, root_id, max_cost, max_num_kernel);
 
     println!("There are {} semi-expressions", &semi_results.len());
 
     let mut total_expressions = Vec::new();
     for semi_result in &semi_results {
-        let full_expressions = reconstruct_full_expression_all(
-            egraph, root_id, &semi_result.choices,
-        );
+        let full_expressions =
+            reconstruct_full_expression_all(egraph, root_id, &semi_result.choices);
         total_expressions.extend(full_expressions);
     }
 
@@ -1265,17 +1217,15 @@ pub fn list_expressions_with_target_cost_v3(
     let max_cost = 3;
     let max_num_kernel = 1;
 
-    let semi_results = enumerate_expressions_with_target_cost_v2(
-        egraph, root_id, max_cost, max_num_kernel
-    );
+    let semi_results =
+        enumerate_expressions_with_target_cost_v2(egraph, root_id, max_cost, max_num_kernel);
 
     println!("There are {} semi-expressions", &semi_results.len());
 
     let mut total_expressions = Vec::new();
     for semi_result in &semi_results {
-        let full_expressions = reconstruct_full_expression_naive(
-            egraph, root_id, &semi_result.choices,
-        );
+        let full_expressions =
+            reconstruct_full_expression_naive(egraph, root_id, &semi_result.choices);
         total_expressions.extend(full_expressions);
     }
 
@@ -1291,9 +1241,8 @@ pub fn list_expressions_with_target_cost_v3_part1(
     let egraph = &runner.egraph;
     let root_id = runner.roots[0];
 
-    let semi_results = enumerate_expressions_with_target_cost_v2(
-        egraph, root_id, max_cost, max_num_kernel
-    );
+    let semi_results =
+        enumerate_expressions_with_target_cost_v2(egraph, root_id, max_cost, max_num_kernel);
 
     println!("There are {} semi-expressions", &semi_results.len());
 
@@ -1302,18 +1251,18 @@ pub fn list_expressions_with_target_cost_v3_part1(
     for result in &semi_results {
         json_array.push(result.to_json()).unwrap();
     }
-    
+
     let json_data = object! {
         count: semi_results.len(),
         semi_expressions: json_array
     };
-    
+
     // Convert to pretty-printed string
     let json_string = json::stringify_pretty(json_data, 2);
-    
+
     // Write to file
     fs::write(output_file, json_string)?;
-    
+
     println!("Semi-expressions saved to {}", output_file);
     Ok(semi_results.len())
 }
@@ -1327,13 +1276,12 @@ pub fn list_expressions_with_target_cost_v3_part2(
 
     // Read from file
     let json_string = fs::read_to_string(input_file)?;
-    
+
     // Parse JSON
-    let parsed = json::parse(&json_string)
-        .map_err(|e| format!("JSON parse error: {}", e))?;
-    
+    let parsed = json::parse(&json_string).map_err(|e| format!("JSON parse error: {}", e))?;
+
     let mut semi_results = Vec::new();
-    
+
     // Extract semi_expressions array
     if parsed["semi_expressions"].is_array() {
         let expressions_array = &parsed["semi_expressions"];
@@ -1347,14 +1295,17 @@ pub fn list_expressions_with_target_cost_v3_part2(
     } else {
         return Err("Missing or invalid 'semi_expressions' array in JSON".into());
     }
-    
-    println!("Loaded {} semi-expressions from {}", semi_results.len(), input_file);
+
+    println!(
+        "Loaded {} semi-expressions from {}",
+        semi_results.len(),
+        input_file
+    );
 
     let mut total_expressions = Vec::new();
     for semi_result in &semi_results {
-        let full_expressions = reconstruct_full_expression_naive(
-            egraph, root_id, &semi_result.choices,
-        );
+        let full_expressions =
+            reconstruct_full_expression_naive(egraph, root_id, &semi_result.choices);
         total_expressions.extend(full_expressions);
     }
 
@@ -1371,13 +1322,12 @@ pub fn list_expressions_from_semi_all(
 
     // Read from file
     let json_string = fs::read_to_string(input_file)?;
-    
+
     // Parse JSON
-    let parsed = json::parse(&json_string)
-        .map_err(|e| format!("JSON parse error: {}", e))?;
-    
+    let parsed = json::parse(&json_string).map_err(|e| format!("JSON parse error: {}", e))?;
+
     let mut semi_results = Vec::new();
-    
+
     // Extract semi_expressions array
     if parsed["semi_expressions"].is_array() {
         let expressions_array = &parsed["semi_expressions"];
@@ -1391,13 +1341,15 @@ pub fn list_expressions_from_semi_all(
     } else {
         return Err("Missing or invalid 'semi_expressions' array in JSON".into());
     }
-    
-    println!("Loaded {} semi-expressions from {}", semi_results.len(), input_file);
+
+    println!(
+        "Loaded {} semi-expressions from {}",
+        semi_results.len(),
+        input_file
+    );
 
     let semi_result = &semi_results[index];
-    let full_expressions = reconstruct_full_expression_all(
-        egraph, root_id, &semi_result.choices,
-    );
+    let full_expressions = reconstruct_full_expression_all(egraph, root_id, &semi_result.choices);
     Ok(full_expressions)
 }
 
@@ -1411,12 +1363,12 @@ pub fn list_expressions_from_semi_naive(
 
     // Read from file
     let json_string = fs::read_to_string(input_file)?;
-    
+
     // Parse JSON
     let parsed = json::parse(&json_string)?;
-    
+
     let mut semi_results = Vec::new();
-    
+
     // Extract semi_expressions array
     if parsed["semi_expressions"].is_array() {
         let expressions_array = &parsed["semi_expressions"];
@@ -1430,18 +1382,26 @@ pub fn list_expressions_from_semi_naive(
     } else {
         return Err("Missing or invalid 'semi_expressions' array in JSON".into());
     }
-    
-    println!("Loaded {} semi-expressions from {}", semi_results.len(), input_file);
+
+    println!(
+        "Loaded {} semi-expressions from {}",
+        semi_results.len(),
+        input_file
+    );
 
     if index >= semi_results.len() {
-        return Err(format!("Index {} out of range. Only {} semi-expressions available", index, semi_results.len()).into());
+        return Err(format!(
+            "Index {} out of range. Only {} semi-expressions available",
+            index,
+            semi_results.len()
+        )
+        .into());
     }
 
     let semi_result = &semi_results[index];
-    let (new_egraph, new_root_id) = create_egraph_from_semi_expression(egraph, semi_result, root_id);
-    let full_expressions = reconstruct_full_expression_naive(
-        &new_egraph, new_root_id, &[],
-    );
+    let (new_egraph, new_root_id) =
+        create_egraph_from_semi_expression(egraph, semi_result, root_id);
+    let full_expressions = reconstruct_full_expression_naive(&new_egraph, new_root_id, &[]);
     println!("{:?}", semi_result.semi_expression);
     println!("{:?}", full_expressions);
     // let dot_string = new_egraph.dot().to_string();
@@ -1461,12 +1421,12 @@ pub fn list_expressions_from_semi_with_cost(
 
     // Read from file
     let json_string = fs::read_to_string(input_file)?;
-    
+
     // Parse JSON
     let parsed = json::parse(&json_string)?;
-    
+
     let mut semi_results = Vec::new();
-    
+
     // Extract semi_expressions array
     if parsed["semi_expressions"].is_array() {
         let expressions_array = &parsed["semi_expressions"];
@@ -1480,29 +1440,35 @@ pub fn list_expressions_from_semi_with_cost(
     } else {
         return Err("Missing or invalid 'semi_expressions' array in JSON".into());
     }
-    
-    println!("Loaded {} semi-expressions from {}", semi_results.len(), input_file);
+
+    println!(
+        "Loaded {} semi-expressions from {}",
+        semi_results.len(),
+        input_file
+    );
 
     // Check if index is special value (usize::MAX) to return all best expressions
     if index == usize::MAX {
-        let mut all_best_expressions = Vec::new();
         let mut multi_enode_tile_sets = Vec::new();
-        
+
         // Collect multi-enode tile information from the first semi-expression only
         if !semi_results.is_empty() {
-            let (first_egraph, _) = create_egraph_from_semi_expression(egraph, &semi_results[0], root_id);
-            
+            let (first_egraph, _) =
+                create_egraph_from_semi_expression(egraph, &semi_results[0], root_id);
+
             // Detect multi-enode tile eclasses
             for class in first_egraph.classes() {
                 // Count Tile and Elem nodes
-                let tile_elem_nodes: Vec<_> = class.nodes.iter()
+                let tile_elem_nodes: Vec<_> = class
+                    .nodes
+                    .iter()
                     .filter(|node| matches!(node, TileLang::Tile(_) | TileLang::Elem(_)))
                     .collect();
                 // println!("{:?}", tile_elem_nodes);
                 // Only process if there are multiple Tile/Elem nodes
                 if tile_elem_nodes.len() > 1 {
                     let mut tile_elem_exprs = HashSet::new();
-                    
+
                     for node in tile_elem_nodes {
                         match node {
                             TileLang::Tile(var_id) => {
@@ -1526,7 +1492,7 @@ pub fn list_expressions_from_semi_with_cost(
                             _ => {}
                         }
                     }
-                    
+
                     // Check if they have different variables (should be true if we have multiple nodes)
                     if tile_elem_exprs.len() > 1 {
                         multi_enode_tile_sets.push(tile_elem_exprs);
@@ -1534,9 +1500,9 @@ pub fn list_expressions_from_semi_with_cost(
                 }
             }
         }
-        
+
         // Now extract best expressions for all semi-expressions
-        
+
         // Original sequential version (commented out for parallel implementation)
         // for (i, semi_result) in semi_results.iter().enumerate() {
         //     let (new_egraph, new_root_id) = create_egraph_from_semi_expression(egraph, semi_result, root_id);
@@ -1545,54 +1511,66 @@ pub fn list_expressions_from_semi_with_cost(
         //     // let extractor = Extractor::new(&egraph, AstSize);
         //     // let (best_cost, best_expr) = extractor.find_best(root_id);
         //     let (best_cost, best_expr) = extractor.find_best(new_root_id);
-            
+
         //     // all_best_expressions.push(format!("// Semi-expression index {}: cost = {}", i, best_cost));
         //     all_best_expressions.push(format!("{}", best_expr));
         // }
-        
+
         // Parallel version using rayon
         let best_expressions: Vec<String> = semi_results
             .par_iter()
             .enumerate()
-            .map(|(i, semi_result)| {
-                let (new_egraph, new_root_id) = create_egraph_from_semi_expression(egraph, semi_result, root_id);
+            .map(|(_i, semi_result)| {
+                let (new_egraph, new_root_id) =
+                    create_egraph_from_semi_expression(egraph, semi_result, root_id);
                 let extractor = create_fine_grained_extractor(&new_egraph);
                 // let extractor = Extractor::new(&new_egraph, AstSize);
                 // let extractor = Extractor::new(&egraph, AstSize);
                 // let (best_cost, best_expr) = extractor.find_best(root_id);
-                let (best_cost, best_expr) = extractor.find_best(new_root_id);
+                let (_best_cost, best_expr) = extractor.find_best(new_root_id);
                 // println!("semi {:?} cost {:?}", i, best_cost);
-                
+
                 // format!("// Semi-expression index {}: cost = {}", i, best_cost)
                 format!("{}", best_expr)
             })
             .collect();
-        
-        all_best_expressions = best_expressions;
-        
-        println!("Extracted best expressions for all {} semi-expressions", semi_results.len());
+
+        let all_best_expressions = best_expressions;
+
+        println!(
+            "Extracted best expressions for all {} semi-expressions",
+            semi_results.len()
+        );
         return Ok((all_best_expressions, multi_enode_tile_sets));
     }
 
     if index >= semi_results.len() {
-        return Err(format!("Index {} out of range. Only {} semi-expressions available", index, semi_results.len()).into());
+        return Err(format!(
+            "Index {} out of range. Only {} semi-expressions available",
+            index,
+            semi_results.len()
+        )
+        .into());
     }
 
     let semi_result = &semi_results[index];
-    let (new_egraph, new_root_id) = create_egraph_from_semi_expression(egraph, semi_result, root_id);
-    
+    let (new_egraph, new_root_id) =
+        create_egraph_from_semi_expression(egraph, semi_result, root_id);
+
     // Collect multi-enode tile information
     let mut multi_enode_tile_sets = Vec::new();
     for class in new_egraph.classes() {
         // Count Tile and Elem nodes
-        let tile_elem_nodes: Vec<_> = class.nodes.iter()
+        let tile_elem_nodes: Vec<_> = class
+            .nodes
+            .iter()
             .filter(|node| matches!(node, TileLang::Tile(_) | TileLang::Elem(_)))
             .collect();
-        
+
         // Only process if there are multiple Tile/Elem nodes
         if tile_elem_nodes.len() > 1 {
             let mut tile_elem_exprs = HashSet::new();
-            
+
             for node in tile_elem_nodes {
                 match node {
                     TileLang::Tile(var_id) => {
@@ -1608,17 +1586,16 @@ pub fn list_expressions_from_semi_with_cost(
                     _ => {}
                 }
             }
-            
+
             // Check if they have different variables (should be true if we have multiple nodes)
             if tile_elem_exprs.len() > 1 {
                 multi_enode_tile_sets.push(tile_elem_exprs);
             }
         }
     }
-    
+
     let extractor = create_fine_grained_extractor(&new_egraph);
-    let (best_cost, best_expr) = extractor.find_best(new_root_id);
+    let (_best_cost, best_expr) = extractor.find_best(new_root_id);
 
     Ok((vec![format!("{}", best_expr)], multi_enode_tile_sets))
 }
-

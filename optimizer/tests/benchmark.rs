@@ -779,7 +779,7 @@ egg::test_fn2! {test_rms_norm_all, rules(),
 //                 (index (fulltile))
 //             )
 //         )
-//     )    
+//     )
 //     (loop 0 4096 tile_n n
 //         (loop 0 4096 tile_k k
 //             (seq
@@ -830,9 +830,9 @@ egg::test_fn2! {test_rms_norm_all, rules(),
 //                     )
 //                     (index (fulltile) (tile n))
 //                 )
-            
+
 //             )
-            
+
 //             )
 //             )
 //         )
@@ -1037,8 +1037,7 @@ egg::test_fn2! {test_rms_norm_all, rules(),
 "
 }
 
-
-egg::test_fn2_v2! {test_attacc_skip_ft, 
+egg::test_fn2_v2! {test_attacc_skip_ft,
     rules1 = rules_wo_seqcomm(),
     rules2 = only_seqcomm_rules(),
     n = 3,
@@ -1886,7 +1885,7 @@ egg::test_fn2! {test_flashdecoding_skip_ft, rules(),
     //         (seq
     //             (loop 0 N tile_n n
     //                 (seq
-    //                     (store (input C) 
+    //                     (store (input C)
     //                         (*
     //                             (load (input Q) (index (tile m) (fulltile)))
     //                             (load (input K) (index (fulltile) (tile n)))
@@ -1894,7 +1893,7 @@ egg::test_fn2! {test_flashdecoding_skip_ft, rules(),
     //                         (index (tile m) (tile n))
     //                     )
     //                     (store (input C_exp)
-    //                         (exp 
+    //                         (exp
     //                             (load (input C) (index (tile m) (tile n)))
     //                         )
     //                         (index (tile m) (tile n))
@@ -2244,7 +2243,7 @@ egg::test_fn2! {test_flashattn2_skip_ft, rules(),
     // "
     // (seq
     //     (loop 0 M tile_m m
-    //         (loop 0 N tile_n n 
+    //         (loop 0 N tile_n n
     //             (seq
     //                 (dummy)
     //             (seq
@@ -2252,8 +2251,8 @@ egg::test_fn2! {test_flashattn2_skip_ft, rules(),
     //                 (store (input C_sum)
     //                     (+
     //                         (x (load (input C_sum) (index (tile m))) 1)
-    //                         (rsum 
-    //                             (exp 
+    //                         (rsum
+    //                             (exp
     //                                 (*
     //                                     (load (input Q) (index (tile m) (fulltile)))
     //                                     (load (input K) (index (fulltile) (tile n)))
@@ -2269,7 +2268,7 @@ egg::test_fn2! {test_flashattn2_skip_ft, rules(),
     //         )
     //     )
     //     (loop 0 M tile_m m
-    //         (loop 0 N tile_n n 
+    //         (loop 0 N tile_n n
     //             (seq
     //                 (dummy)
     //                 (store (output O)
@@ -2277,7 +2276,7 @@ egg::test_fn2! {test_flashattn2_skip_ft, rules(),
     //                         (x (load (output O) (index (tile m) (fulltile))) 1)
     //                         (*
     //                             (/
-    //                                 (exp 
+    //                                 (exp
     //                                     (*
     //                                         (load (input Q) (index (tile m) (fulltile)))
     //                                         (load (input K) (index (fulltile) (tile n)))
@@ -2308,8 +2307,8 @@ egg::test_fn2! {test_flashattn2_skip_ft, rules(),
     //                 (store (input C_sum)
     //                     (+
     //                         (x (load (input C_sum) (index (tile m))) 1)
-    //                         (rsum 
-    //                             (exp 
+    //                         (rsum
+    //                             (exp
     //                                 (*
     //                                     (load (input Q) (index (tile m) (fulltile)))
     //                                     (load (input K) (index (fulltile) (tile n)))
@@ -2324,7 +2323,7 @@ egg::test_fn2! {test_flashattn2_skip_ft, rules(),
     //                     (+
     //                         (x (load (output O) (index (tile m) (fulltile))) 1)
     //                         (*
-    //                             (exp 
+    //                             (exp
     //                                 (*
     //                                     (load (input Q) (index (tile m) (fulltile)))
     //                                     (load (input K) (index (fulltile) (tile n)))
@@ -2422,12 +2421,12 @@ egg::test_fn2! {test_gated_mlp, rules(),
     "
     =>
     // "
-    // (loop 0 M tile_m m 
+    // (loop 0 M tile_m m
     //     (loop 0 N tile_n n
     //         (seq
-    //             (loop 0 K tile_k k 
+    //             (loop 0 K tile_k k
     //                 (seq
-    //                     (store (input C1) 
+    //                     (store (input C1)
     //                         (+
     //                             (x (load (input C1) (index (tile m) (tile n))) 1)
     //                             (*
@@ -2437,7 +2436,7 @@ egg::test_fn2! {test_gated_mlp, rules(),
     //                         )
     //                     (index (tile m) (tile n))
     //                     )
-    //                     (store (input C2) 
+    //                     (store (input C2)
     //                         (+
     //                             (x (load (input C2) (index (tile m) (tile n))) 1)
     //                             (*
@@ -2451,7 +2450,7 @@ egg::test_fn2! {test_gated_mlp, rules(),
     //             )
     //         (seq
     //             (dummy)
-    //             (store (output O) 
+    //             (store (output O)
     //                 (x
     //                     (exp
     //                         (load (input C1) (index (tile m) (tile n)))
@@ -2467,11 +2466,11 @@ egg::test_fn2! {test_gated_mlp, rules(),
     // "
     // ,
     // "
-    // (loop 0 M tile_m m 
+    // (loop 0 M tile_m m
     //     (loop 0 N tile_n n
     //         (seq
-    //             (loop 0 K tile_k k 
-    //                 (store (input C1) 
+    //             (loop 0 K tile_k k
+    //                 (store (input C1)
     //                     (+
     //                         (x (load (input C1) (index (tile m) (tile n))) 1)
     //                         (*
@@ -2483,8 +2482,8 @@ egg::test_fn2! {test_gated_mlp, rules(),
     //                 )
     //             )
     //         (seq
-    //             (loop 0 K tile_k k 
-    //                 (store (input C2) 
+    //             (loop 0 K tile_k k
+    //                 (store (input C2)
     //                     (+
     //                         (x (load (input C2) (index (tile m) (tile n))) 1)
     //                         (*
@@ -2495,9 +2494,9 @@ egg::test_fn2! {test_gated_mlp, rules(),
     //                     (index (tile m) (tile n))
     //                 )
     //             )
-            
+
     //         (seq
-    //             (store (output O) 
+    //             (store (output O)
     //                 (x
     //                     (exp
     //                         (load (input C1) (index (tile m) (tile n)))
@@ -2506,7 +2505,7 @@ egg::test_fn2! {test_gated_mlp, rules(),
     //                 )
     //                 (index (tile m) (tile n))
     //             )
-    //             (store (input C1_exp) 
+    //             (store (input C1_exp)
     //                 (exp
     //                     (load (input C1) (index (tile m) (tile n)))
     //                 )
@@ -2520,11 +2519,11 @@ egg::test_fn2! {test_gated_mlp, rules(),
     // "
     // ,
     // "
-    // (loop 0 M tile_m m 
+    // (loop 0 M tile_m m
     //     (loop 0 N tile_n n
     //         (seq
-    //             (loop 0 K tile_k k 
-    //                 (store (input C1) 
+    //             (loop 0 K tile_k k
+    //                 (store (input C1)
     //                     (+
     //                         (x (load (input C1) (index (tile m) (tile n))) 1)
     //                         (*
@@ -2536,8 +2535,8 @@ egg::test_fn2! {test_gated_mlp, rules(),
     //                 )
     //             )
     //         (seq
-    //             (loop 0 K tile_k k 
-    //                 (store (output O) 
+    //             (loop 0 K tile_k k
+    //                 (store (output O)
     //                     (+
     //                         (x (load (output O) (index (tile m) (tile n))) 1)
     //                         (x
@@ -2553,7 +2552,7 @@ egg::test_fn2! {test_gated_mlp, rules(),
     //                     (index (tile m) (tile n))
     //                 )
     //             )
-    //             (store (input C1_exp) 
+    //             (store (input C1_exp)
     //                 (exp
     //                     (load (input C1) (index (tile m) (tile n)))
     //                 )

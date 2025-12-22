@@ -1,14 +1,14 @@
+use egg::*;
 use egg::{test_fn2, test_fn_not2, *};
+use rayon::prelude::*;
+use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
-use std::fs::File;
-use rayon::prelude::*;
-use trinity::*;
-use trinity::language::{TileLang, LoopAnalysis, SHAPE_TRACKER};
-use trinity::shape::{ShapeTracker, TensorShape, Dimension};
-use trinity::cost::{create_fine_grained_extractor};
-use egg::*;
 use std::sync::Once;
+use trinity::cost::create_fine_grained_extractor;
+use trinity::language::{LoopAnalysis, TileLang, SHAPE_TRACKER};
+use trinity::shape::{Dimension, ShapeTracker, TensorShape};
+use trinity::*;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
@@ -31,46 +31,44 @@ fn get_tensor_shape(egraph: &EGraph, id: Id) -> Option<TensorShape> {
 #[test]
 fn naive_whole() {
     setup_shape_tracker(vec![
-      ("X", vec![16, 4544]),
-      ("WQ", vec![4544, 4544]),
-      ("WK", vec![4544, 4544]),
-      ("WV", vec![4544, 4544]),
-      ("Q1", vec![16, 4544]),
-      ("K1", vec![16, 4544]),
-      ("V1", vec![16, 4544]),
-      ("Q2", vec![16, 71, 64]),
-      ("K2", vec![16, 71, 64]),
-      ("V2", vec![16, 71, 64]),
-      ("Q", vec![71, 16, 64]),
-      ("K", vec![71, 16, 64]),
-      ("V", vec![71, 16, 64]),
-      ("K_cache", vec![71, 1040, 64]),
-      ("V_cache", vec![71, 1040, 64]),
-      ("C", vec![71, 16, 1040]),
-      ("C_exp", vec![71, 16, 1040]),
-      ("C_sum", vec![71, 16]),
-      ("C_div", vec![71, 16, 1040]),
-      ("O", vec![71, 16, 64]),
-      ("O1", vec![16, 71, 64]),
-      ("O2", vec![16, 4544]),
-
-    ("WO", vec![4544, 4544]),
-    ("attn_O1", vec![16, 4544]),
-    ("X", vec![16, 4544]),
-    ("attn_O2", vec![16, 4544]),
-    ("attn_O3", vec![16]),
-    ("attn_O_norm", vec![16, 4544]),
-    ("WFF1a", vec![4544, 18176]),
-    ("WFF1b", vec![4544, 18176]),
-    ("FF1a", vec![16, 18176]),
-    ("FF1b", vec![16, 18176]),
-    ("FF1b_silu", vec![16, 18176]),
-    ("FF1", vec![16, 18176]),
-    ("FF2", vec![16, 4544]),
-    ("WFF2", vec![18176, 4544]),
-    ("O_FF", vec![16, 4544]),
-  ]);
-
+        ("X", vec![16, 4544]),
+        ("WQ", vec![4544, 4544]),
+        ("WK", vec![4544, 4544]),
+        ("WV", vec![4544, 4544]),
+        ("Q1", vec![16, 4544]),
+        ("K1", vec![16, 4544]),
+        ("V1", vec![16, 4544]),
+        ("Q2", vec![16, 71, 64]),
+        ("K2", vec![16, 71, 64]),
+        ("V2", vec![16, 71, 64]),
+        ("Q", vec![71, 16, 64]),
+        ("K", vec![71, 16, 64]),
+        ("V", vec![71, 16, 64]),
+        ("K_cache", vec![71, 1040, 64]),
+        ("V_cache", vec![71, 1040, 64]),
+        ("C", vec![71, 16, 1040]),
+        ("C_exp", vec![71, 16, 1040]),
+        ("C_sum", vec![71, 16]),
+        ("C_div", vec![71, 16, 1040]),
+        ("O", vec![71, 16, 64]),
+        ("O1", vec![16, 71, 64]),
+        ("O2", vec![16, 4544]),
+        ("WO", vec![4544, 4544]),
+        ("attn_O1", vec![16, 4544]),
+        ("X", vec![16, 4544]),
+        ("attn_O2", vec![16, 4544]),
+        ("attn_O3", vec![16]),
+        ("attn_O_norm", vec![16, 4544]),
+        ("WFF1a", vec![4544, 18176]),
+        ("WFF1b", vec![4544, 18176]),
+        ("FF1a", vec![16, 18176]),
+        ("FF1b", vec![16, 18176]),
+        ("FF1b_silu", vec![16, 18176]),
+        ("FF1", vec![16, 18176]),
+        ("FF2", vec![16, 4544]),
+        ("WFF2", vec![18176, 4544]),
+        ("O_FF", vec![16, 4544]),
+    ]);
 
     let expr = "
 (seq
@@ -326,46 +324,53 @@ fn naive_whole() {
 )))))))))))))))))))
     ";
 
-    let mut runner = run_until_saturated(
-        expr,
-        rules(),
-        8,
-    );
+    let mut runner = run_until_saturated(expr, rules(), 8);
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/whole_falcon_cost12_kern7.json", 12, 7) {
+    match list_expressions_with_target_cost_v3_part1(
+        &runner,
+        "/home/jhpark676/Project/trinity/expressions/semi/whole_falcon_cost12_kern7.json",
+        12,
+        7,
+    ) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/whole_falcon_cost12_kern7.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(
+        &runner,
+        "/home/jhpark676/Project/trinity/expressions/semi/whole_falcon_cost12_kern7.json",
+        usize::MAX,
+    ) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
             (expressions, tile_sets)
-        },
+        }
         Err(e) => {
             println!("Load error: {}", e);
             return;
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/whole_falcon_cost12_kern7.txt").expect("Failed to create file");
+    let file =
+        File::create("/home/jhpark676/Project/trinity/expressions/whole_falcon_cost12_kern7.txt")
+            .expect("Failed to create file");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
-    .par_iter()
-    .enumerate()
-    .map(|(i, expr)| {
-        let new_expr = postprocess_v2(expr, &tile_sets);
-        // let new_expr = expr;
-        format!("{}: {}", i, new_expr) // String 생성
-    })
-    .filter(|line| !line.contains("dummydata")) // "dummydata" 포함된 건 제외
-    .collect::<Vec<String>>() 
-    .iter()
-    .for_each(|line| {
-        writeln!(writer, "{}", line).expect("Failed to write to file");
-    });
-    
+        .par_iter()
+        .enumerate()
+        .map(|(i, expr)| {
+            let new_expr = postprocess_v2(expr, &tile_sets);
+            // let new_expr = expr;
+            format!("{}: {}", i, new_expr) // String 생성
+        })
+        .filter(|line| !line.contains("dummydata")) // "dummydata" 포함된 건 제외
+        .collect::<Vec<String>>()
+        .iter()
+        .for_each(|line| {
+            writeln!(writer, "{}", line).expect("Failed to write to file");
+        });
+
     writer.flush().expect("Failed to flush writer");
 }

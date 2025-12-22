@@ -1,7 +1,6 @@
 use egg::{test_fn2, test_fn_not2, *};
 use trinity::*;
 
-
 #[test]
 fn saturate_gated_mlp_skip_ft() {
     let expr = "
@@ -59,10 +58,7 @@ fn saturate_gated_mlp_skip_ft() {
     )
     )
     ";
-    let runner = run_until_saturated(
-        expr,
-        rules(),
-    );
+    let runner = run_until_saturated(expr, rules());
     // let runner = run_until_saturated(
     //     &generate_nested_seq(1, "z"),
     //     rules(),
@@ -134,15 +130,11 @@ fn saturate_gated_mlp() {
     )
     )
     ";
-    let runner = run_until_saturated(
-        expr,
-        rules(),
-    );
+    let runner = run_until_saturated(expr, rules());
     // let check_expr: RecExpr<TileLang> = "(load (input C1_exp) (index (tile m) (tile n)))".parse().unwrap();
 
     // let found = contains_expr(&runner.egraph, runner.roots[0], &check_expr);
     // println!("{:?} => {:?}", check_expr, found);
-
 }
 
 #[test]
@@ -200,10 +192,7 @@ fn saturate_lora() {
     )
     )
     ";
-    let runner = run_until_saturated(
-        expr,
-        rules(),
-    );
+    let runner = run_until_saturated(expr, rules());
 }
 
 #[test]
@@ -249,10 +238,7 @@ fn saturate_lora_skip_ft() {
     )
     )
     ";
-    let runner = run_until_saturated(
-        expr,
-        rules(),
-    );
+    let runner = run_until_saturated(expr, rules());
 
     println!("All equivalent expressions for your input:");
     let root_expressions = list_expressions_for_root(&runner);
@@ -451,10 +437,7 @@ fn saturate_attacc_skip_ft() {
 
 )))))))))))))))
 ";
-    let mut runner = run_until_saturated(
-        expr,
-        rules(),
-    );
+    let mut runner = run_until_saturated(expr, rules());
     postprocess_egraph(&mut runner.egraph);
 
     // List all expressions for the root e-class
@@ -529,13 +512,13 @@ fn saturate_flashattn2_skip_ft() {
         )
     ))))
     ";
-    // let expr = "(seq 
+    // let expr = "(seq
     //     (loop 0 N tile_n n (store (input B) (load (input A) (index (tile n))) (index (tile n))))
     //     (loop 0 N tile_n n (store (output C) (load (input B) (index (tile n))) (index (tile n))))
     // )";
     // let expr = "
     // (seq
-    //     (loop 0 P tile_p p 
+    //     (loop 0 P tile_p p
     //         (loop 0 N tile_n n
     //             (store (input C)
     //                 (+ (x (load (input C) (index (fulltile) (tile p))) 1)
@@ -556,7 +539,7 @@ fn saturate_flashattn2_skip_ft() {
     //     )
 
     // (seq
-    //     (loop 0 P tile_p p 
+    //     (loop 0 P tile_p p
     //         (store (input E)
     //             (* (load (input D) (index (fulltile) (fulltile))) (load (input B) (index (fulltile) (tile p)))
     //             )
@@ -569,7 +552,7 @@ fn saturate_flashattn2_skip_ft() {
     //             (+ (load (input C) (index (fulltile) (tile p))) (load (input E) (index (fulltile) (tile p))))
     //             (index (fulltile) (tile p))
     //         )
-    //     )   
+    //     )
     // )
     // )
     // )
@@ -602,7 +585,7 @@ fn saturate_flashattn2_skip_ft() {
     // println!("All equivalent expressions for your input:");
     // let root_expressions = list_expressions_for_root(&runner);
     // println!("There are {:?} expressions", root_expressions.len());
-    
+
     // save_egraph(&runner, "egraph.dot");
 
     // // let egraph = &runner.egraph;
@@ -612,7 +595,7 @@ fn saturate_flashattn2_skip_ft() {
 
     // let file = File::create("expressions/attention_skip_ft.txt").expect("Failed to create file");
     // let mut writer = BufWriter::new(file);
-    
+
     // root_expressions
     //     .par_iter()
     //     .enumerate()
@@ -625,10 +608,10 @@ fn saturate_flashattn2_skip_ft() {
     //     .for_each(|line| {
     //         writeln!(writer, "{}", line).expect("Failed to write to file");
     //     });
-    
+
     // writer.flush().expect("Failed to flush writer");
     // println!("Expressions written to expressions.txt");
-    
+
     // for (i, expr) in root_expressions.iter().enumerate() {
     //     let new_expr = postprocess(expr);
     //     // let new_expr = expr;

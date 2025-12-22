@@ -1,10 +1,9 @@
 use egg::{test_fn2, test_fn_not2, *};
-use trinity::*;
+use rayon::prelude::*;
+use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
-use std::fs::File;
-use rayon::prelude::*;
-
+use trinity::*;
 
 egg::test_fn2! {attacc_fusion, custom_rules(),
 "
@@ -918,7 +917,7 @@ egg::test_fn2! {attn_assoc, rules(),
 //                     )
 //                     (index (tile h) (fulltile) (tile p))
 //                 )
-//             )   
+//             )
 //         )
 //         )
 //         )
@@ -1012,7 +1011,7 @@ egg::test_fn2! {misc, rules(),
 //             )
 //             (index (fulltile) (tile p))
 //         )
-//     )  
+//     )
 // )
 // "
 // ,
@@ -1047,7 +1046,7 @@ egg::test_fn2! {misc, rules(),
 //             )
 //             (index (fulltile) (tile p))
 //         )
-//     )  
+//     )
 // )
 // "
 // ,
@@ -1117,8 +1116,8 @@ egg::test_fn2! {misc, rules(),
 //             )
 //             (index (fulltile) (tile p))
 //         )
-//     )  
-    
+//     )
+
 // )
 // "
 }
@@ -1479,21 +1478,16 @@ fn saturate_insertion() {
     )
     ";
 
-    let mut runner = run_until_saturated(
-        expr,
-        rules(),
-        10,
-    );
-    
+    let mut runner = run_until_saturated(expr, rules(), 10);
 
     save_egraph(&runner, "egraph.dot");
 }
 
 #[test]
 fn test_save_load_egraph() {
-    use trinity::{save_raw_egraph, load_raw_egraph};
     use std::fs;
-    
+    use trinity::{load_raw_egraph, save_raw_egraph};
+
     // Create a test expression and run until saturation
     let expr = "
     (seq
@@ -1518,68 +1512,67 @@ fn test_save_load_egraph() {
     ";
 
     println!("Step 1: Creating and saturating egraph...");
-    let original_runner = run_until_saturated(
-        expr,
-        rules(),
-        10,
-    );
-    
+    let original_runner = run_until_saturated(expr, rules(), 10);
+
     // Get statistics from original egraph
     let original_nodes = original_runner.egraph.total_number_of_nodes();
     let original_classes = original_runner.egraph.number_of_classes();
     let original_iterations = original_runner.iterations.len();
-    
+
     println!("Original egraph statistics:");
     println!("  Nodes: {}", original_nodes);
     println!("  Classes: {}", original_classes);
     println!("  Iterations: {}", original_iterations);
-    
+
     // Save the raw egraph structure
     let raw_file = "test_egraph_raw.txt";
-    
+
     println!("\nStep 2: Saving raw egraph structure...");
 
     // Save raw egraph
-    save_raw_egraph(&original_runner, raw_file)
-        .expect("Failed to save raw egraph");
+    save_raw_egraph(&original_runner, raw_file).expect("Failed to save raw egraph");
     println!("  Saved raw egraph to {}", raw_file);
-    
+
     // Also save DOT visualization
     save_egraph(&original_runner, "test_egraph.dot");
     println!("  Saved DOT visualization to test_egraph.dot");
-    
+
     // Verify the file was created and has content
     let metadata = fs::metadata(raw_file).expect("Failed to get file metadata");
     println!("\nStep 3: Verifying saved file...");
     println!("  File size: {} bytes", metadata.len());
-    
+
     // Load the egraph back
     println!("\nStep 6: Loading egraph from saved file...");
-    let loaded_egraph = load_raw_egraph(raw_file)
-        .expect("Failed to load raw egraph");
-    
+    let loaded_egraph = load_raw_egraph(raw_file).expect("Failed to load raw egraph");
+
     // Step 7: Verify loaded egraph
     println!("\nStep 7: Verifying loaded egraph...");
     let loaded_stats = loaded_egraph.number_of_classes();
     println!("  Loaded egraph has {} classes", loaded_stats);
-    
+
     // The loaded egraph should have similar statistics
-    assert!(loaded_stats > 0, "Loaded egraph should have at least one class");
-    
+    assert!(
+        loaded_stats > 0,
+        "Loaded egraph should have at least one class"
+    );
+
     // Step 8: Save visualizations for comparison
     println!("\nStep 8: Saving visualizations for comparison...");
     save_egraph_from_egraph(&loaded_egraph, "test_egraph_loaded.dot");
     println!("  Saved loaded egraph visualization to test_egraph_loaded.dot");
-    
+
     // Step 9: Verify semantic equivalence
     println!("\nStep 9: Verifying semantic equivalence...");
-    
+
     // Both egraphs should have the same number of classes
-    assert_eq!(original_classes, loaded_stats, 
-        "Loaded egraph should have the same number of classes as original");
-    
+    assert_eq!(
+        original_classes, loaded_stats,
+        "Loaded egraph should have the same number of classes as original"
+    );
+
     println!("  ✓ Same number of classes: {}", loaded_stats);
-    
+
     // Note: The DOT files will be different for two reasons:
     // 1. Egg assigns IDs based on insertion order
     // 2. Placeholder nodes are added to handle circular dependencies
@@ -1621,22 +1614,15 @@ fn tmp() {
 )
 ";
 
-    let mut runner = run_until_saturated(
-        expr,
-        custom_rules(),
-        7,
-    );
+    let mut runner = run_until_saturated(expr, custom_rules(), 7);
 
     // list_expressions_with_target_cost_v3_part1(&runner, "tmp.json", 100, 100);
     // list_expressions_from_semi_all(&runner, "tmp.json", 0);
     // let new_egraph = visualize_semi_expression(&runner, "tmp.json", 1);
     save_egraph(&runner, "egraph.dot");
-
-
 }
 
 #[test]
-
 
 egg::test_fn2! {test_default_tiling, default_tiling(),
     "

@@ -1,14 +1,14 @@
+use egg::*;
 use egg::{test_fn2, test_fn_not2, *};
+use rayon::prelude::*;
+use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
-use std::fs::File;
-use rayon::prelude::*;
-use trinity::*;
-use trinity::language::{TileLang, LoopAnalysis, SHAPE_TRACKER};
-use trinity::shape::{ShapeTracker, TensorShape, Dimension};
-use trinity::cost::{create_fine_grained_extractor};
-use egg::*;
 use std::sync::Once;
+use trinity::cost::create_fine_grained_extractor;
+use trinity::language::{LoopAnalysis, TileLang, SHAPE_TRACKER};
+use trinity::shape::{Dimension, ShapeTracker, TensorShape};
+use trinity::*;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
@@ -51,14 +51,12 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
         ("C_exp", vec![32, 16, 1040]),
         ("C_sum", vec![32, 16]),
         ("C_div", vec![32, 16, 1040]),
-        
         ("C_perturb", vec![32, 16, 1040]),
         ("noise", vec![32, 16, 1040]),
         ("C_exp_perturb", vec![32, 16, 1040]),
         ("C_sum_perturb", vec![32, 16]),
         ("C_div_perturb", vec![32, 16, 1040]),
         ("C_out", vec![32, 1040]),
-
         ("O", vec![32, 16, 128]),
         ("O1", vec![16, 32, 128]),
         ("O2", vec![16, 4096]),
@@ -269,47 +267,54 @@ fn llama_extract_rmsnorm_qkv_attn_expressions() {
 )))))))))))))))
     ";
 
-    let mut runner = run_until_saturated(
-        expr,
-        rules(),
-        8,
-    );
+    let mut runner = run_until_saturated(expr, rules(), 8);
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_prenorm_llama_cost6_kern2.json", 6, 2) {
+    match list_expressions_with_target_cost_v3_part1(
+        &runner,
+        "/home/jhpark676/Project/trinity/expressions/semi/keyformer_prenorm_llama_cost6_kern2.json",
+        6,
+        2,
+    ) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
 
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_prenorm_llama_cost6_kern2.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(
+        &runner,
+        "/home/jhpark676/Project/trinity/expressions/semi/keyformer_prenorm_llama_cost6_kern2.json",
+        usize::MAX,
+    ) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             println!("{:?}", tile_sets);
             (expressions, tile_sets)
-        },
+        }
         Err(e) => {
             println!("Load error: {}", e);
             return;
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/keyformer_prenorm_llama_cost6_kern2.txt").expect("Failed to create file");
+    let file = File::create(
+        "/home/jhpark676/Project/trinity/expressions/keyformer_prenorm_llama_cost6_kern2.txt",
+    )
+    .expect("Failed to create file");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             writeln!(writer, "{}", line).expect("Failed to write to file");
         });
-    
-    writer.flush().expect("Failed to flush writer");
 
+    writer.flush().expect("Failed to flush writer");
 }
 
 #[test]
@@ -335,14 +340,12 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         ("C_exp", vec![71, 16, 1040]),
         ("C_sum", vec![71, 16]),
         ("C_div", vec![71, 16, 1040]),
-        
         ("C_perturb", vec![71, 16, 1040]),
         ("noise", vec![71, 16, 1040]),
         ("C_exp_perturb", vec![71, 16, 1040]),
         ("C_sum_perturb", vec![71, 16]),
         ("C_div_perturb", vec![71, 16, 1040]),
         ("C_out", vec![71, 1040]),
-
         ("O", vec![71, 16, 64]),
         ("O1", vec![16, 71, 64]),
         ("O2", vec![16, 4544]),
@@ -553,11 +556,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
 )))))))))))))))
     ";
 
-    let mut runner = run_until_saturated(
-        expr,
-        rules(),
-        8,
-    );
+    let mut runner = run_until_saturated(expr, rules(), 8);
 
     match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/keyformer_prenorm_falcon_cost6_kern2.json", 6, 2) {
         Ok(count) => println!("Saved {} expressions", count),
@@ -576,22 +575,24 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/keyformer_prenorm_falcon_cost6_kern2.txt").expect("Failed to create file");
+    let file = File::create(
+        "/home/jhpark676/Project/trinity/expressions/keyformer_prenorm_falcon_cost6_kern2.txt",
+    )
+    .expect("Failed to create file");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             writeln!(writer, "{}", line).expect("Failed to write to file");
         });
-    
-    writer.flush().expect("Failed to flush writer");
 
+    writer.flush().expect("Failed to flush writer");
 }

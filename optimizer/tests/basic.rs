@@ -17,7 +17,7 @@ egg::test_fn2! {fusible1, rules(),
         B[n:n+tile_n] = A[n:n+tile_n]
         C[n:n+tile_n] = B[n:n+tile_n]
     */
-    "(seq 
+    "(seq
         (loop 0 N tile_n n (store (input B) (load (input A) (index (tile n))) (index (tile n))))
         (loop 0 N tile_n n (store (output C) (load (input B) (index (tile n))) (index (tile n))))
     )"
@@ -33,8 +33,8 @@ egg::test_fn2! {fusible1, rules(),
     ,
     // "
     // (loop 0 N tile_n n
-    //     (seq 
-    //         (dummy)  
+    //     (seq
+    //         (dummy)
     //         (store (output C) (load (input A) (index (tile n))) (index (tile n)))
     //     )
     // )
@@ -118,7 +118,7 @@ egg::test_fn2! {fusible3, rules(),
     for n in (N, tile_n):
         for m in (M, tile_m):
             B[n:n+tile_n] = B[n:n+tile_n] + A[n:n+tile_n, m:m+tile_m]
-        
+
         for m in (M, tile_m):
             C[n:n+tile_n, m:m+tile_m] = B[n:n+tile_n] + 2
     */
@@ -211,7 +211,7 @@ egg::test_fn_not2! {not_fusible1, rules(),
             )    
         )
     )"
-    != 
+    !=
     "
     (loop 0 N tile_n n 
         (loop 0 M tile_m m 
@@ -275,41 +275,41 @@ egg::test_fn2! {fusible4, rules(),
     )"
     =>
     // "(seq
-    //     (loop 0 N tile_n n 
+    //     (loop 0 N tile_n n
     //         (dummy)
     //     )
-    //     (loop 0 N tile_n n 
-    //         (loop 0 M tile_m m 
-    //             (store (output C) 
-    //                 (+ 
+    //     (loop 0 N tile_n n
+    //         (loop 0 M tile_m m
+    //             (store (output C)
+    //                 (+
     //                     (load (input B) (index (tile n)))
     //                     2
     //                 )
     //                 (index (tile n) (tile m))
     //             )
-    //         )    
+    //         )
     //     )
     // )"
     // ,
     // "
     // (loop N tile_n n
     //     (seq
-    //         (store (input B) 
-    //             (+ 
+    //         (store (input B)
+    //             (+
     //                 (load (input A) (index (tile n)))
     //                 2
     //             )
     //             (index (tile n))
     //         )
-    //         (loop M tile_m m 
-    //             (store (input C) 
-    //                 (+ 
+    //         (loop M tile_m m
+    //             (store (input C)
+    //                 (+
     //                     (load (input B) (index (tile n)))
     //                     2
     //                 )
     //                 (index (tile n) (tile m))
     //             )
-    //         )    
+    //         )
     //     )
     // )
     // "
@@ -318,22 +318,22 @@ egg::test_fn2! {fusible4, rules(),
     // (loop N tile_n n
     //     (loop M tile_m m
     //         (seq
-    //             (store (input B) 
-    //                 (+ 
+    //             (store (input B)
+    //                 (+
     //                     (load (input A) (index (tile n)))
     //                     2
     //                 )
     //                 (index (tile n))
     //             )
-    //             (store (input C) 
-    //                 (+ 
+    //             (store (input C)
+    //                 (+
     //                     (load (input B) (index (tile n)))
     //                     2
     //                 )
     //                 (index (tile n) (tile m))
     //             )
     //         )
-    //     )    
+    //     )
     // )
     // "
     // ,
@@ -396,7 +396,7 @@ egg::test_fn2! {fusible5, rules(),
             )    
         )
     )"
-    => 
+    =>
     "
     (loop 0 N tile_n n 
         (loop 0 M tile_m m 
@@ -442,7 +442,7 @@ egg::test_fn2! {loop_deletion, rules(),
         )    
     )
     "
-    => 
+    =>
     "
     (loop 0 N tile_n n 
         (store (output B) 
@@ -514,7 +514,7 @@ egg::test_fn2! {seq_fusion, rules(),
     )
     "
     =>
-    
+
     "
     (loop 0 N tile_n n 
         (seq
@@ -716,7 +716,7 @@ egg::test_fn_not2! {loop_insertion_fuse1, rules(),
     )
     "
 }
-egg::test_fn2! {sequence_fuse1, rules(),  
+egg::test_fn2! {sequence_fuse1, rules(),
     "
     (seq 
         (loop 0 N tile_n n (store (output B) (load (input A) (index (tile n))) (index (tile n))))
@@ -1283,15 +1283,15 @@ egg::test_fn2! {forward_and_fission1, rules(),
     // ,
     // "
     // (seq
-    //     (loop 0 N tile_n n 
-    //         (store (output D) 
+    //     (loop 0 N tile_n n
+    //         (store (output D)
     //             (+ (x (load (output D) (index)) 1)
     //                 (* (x 2 (load (input A) (index (tile n)))) (load (input C) (index (tile n))))
     //             )
     //             (index)
     //         )
     //     )
-    //     (loop 0 N tile_n n 
+    //     (loop 0 N tile_n n
     //         (store (output B) (x 2 (load (input A) (index (tile n)))) (index (tile n)))
     //     )
     // )
@@ -1527,12 +1527,12 @@ egg::test_fn_not2! {not_fusible2, rules(),
 }
 
 egg::test_fn2! {equivalent, rules(),
-    "(seq 
+    "(seq
         (loop 0 N tile_n n (store (input B) (load (input A) (index (tile n))) (index (tile n))))
         (loop 0 N tile_n n (store (output C) (load (input B) (index (tile n))) (index (tile n))))
     )"
     =>
-    "(seq 
+    "(seq
         (loop 0 N tile_n n (store (input B) (load (input A) (index (tile n))) (index (tile n))))
         (loop 0 N tile_n n (store (output C) (load (input A) (index (tile n))) (index (tile n))))
     )"
@@ -2118,7 +2118,7 @@ egg::test_fn2! {const_loop_fusion_same6, rules(),
 "
 }
 
-egg::test_fn_not2!{multi_input1, rules(),
+egg::test_fn_not2! {multi_input1, rules(),
 "
 (seq
     (loop 0 N tile_n n
@@ -2158,7 +2158,7 @@ egg::test_fn_not2!{multi_input1, rules(),
 "
 }
 
-egg::test_fn_not2!{not_fusible3, rules(),
+egg::test_fn_not2! {not_fusible3, rules(),
 "
 (seq
     (loop 0 4544 tile_n n
@@ -2232,7 +2232,7 @@ egg::test_fn_not2!{not_fusible3, rules(),
 
 }
 
-egg::test_fn2!{loop_insertion_fuse4, rules(),
+egg::test_fn2! {loop_insertion_fuse4, rules(),
 "
 (seq
     (loop 0 4544 tile_k k

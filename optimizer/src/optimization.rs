@@ -1,11 +1,9 @@
 //! Optimization runner and related utilities
 
-use egg::*;
-use crate::language::TileLang;
 use crate::language::LoopAnalysis;
-use std::collections::{HashSet, HashMap};
-
-const MAX_ITER: usize = 10;
+use crate::language::TileLang;
+use egg::*;
+use std::collections::HashMap;
 
 pub fn run_until_saturated(
     expr: &str,
@@ -15,27 +13,21 @@ pub fn run_until_saturated(
     let parsed_expr: RecExpr<TileLang> = expr.parse().unwrap();
 
     // 기본 BackoffScheduler
-    let mut default_scheduler = BackoffScheduler::default()
+    let default_scheduler = BackoffScheduler::default()
         .rule_match_limit("seq-comm-tail", 5000)
         .rule_ban_length("seq-comm-tail", 1)
-        
         .rule_match_limit("seq-comm", usize::MAX)
         .rule_ban_length("seq-comm", 0)
-
         .rule_match_limit("seq-comm-loop-store-tail1", usize::MAX)
         .rule_ban_length("seq-comm-loop-store-tail1", 0)
         .rule_match_limit("seq-comm-loop-store-tail2", usize::MAX)
         .rule_ban_length("seq-comm-loop-store-tail2", 0)
         .rule_match_limit("seq-comm-loop-loop-tail", usize::MAX)
         .rule_ban_length("seq-comm-loop-loop-tail", 0)
-
-
         .rule_match_limit("loop-fusion-unified-tail", 5000)
         .rule_ban_length("loop-fusion-unified-tail", 1)
-        
         .rule_match_limit("loop-fusion-unified", usize::MAX)
-        .rule_ban_length("loop-fusion-unified", 0)
-        ;
+        .rule_ban_length("loop-fusion-unified", 0);
 
     let runner = Runner::default()
         .with_expr(&parsed_expr)
@@ -45,18 +37,23 @@ pub fn run_until_saturated(
         .with_scheduler(default_scheduler)
         .run(&rules);
 
-
     // Count edges in the egraph
-    let edge_count: usize = runner.egraph.classes()
+    let edge_count: usize = runner
+        .egraph
+        .classes()
         .flat_map(|class| &class.nodes)
         .map(|node| node.len())
         .sum();
 
     // Count direct cycles (e-nodes with children pointing to their own e-class)
-    let cycle_count: usize = runner.egraph.classes()
+    let cycle_count: usize = runner
+        .egraph
+        .classes()
         .map(|class| {
             let class_id = class.id;
-            class.nodes.iter()
+            class
+                .nodes
+                .iter()
                 .filter(|node| node.children().iter().any(|child_id| *child_id == class_id))
                 .count()
         })

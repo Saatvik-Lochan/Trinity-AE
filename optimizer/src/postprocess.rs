@@ -1,13 +1,10 @@
 //! Postprocessing and deadcode elimination
 
-use egg::*;
-use std::collections::HashSet;
-use std::collections::HashMap;
-use crate::utils::*;
 use crate::language::*;
-use num_bigint::BigUint;
-use std::str::FromStr;
-use std::collections::VecDeque;
+use crate::utils::*;
+use egg::*;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
@@ -16,18 +13,18 @@ pub fn postprocess_egraph(egraph: &mut EGraph) {
     Step1) Finally resolve all illegal sequences
     */
     let class_ids: Vec<Id> = egraph.classes().map(|class| class.id).collect();
-    
+
     for id in class_ids {
         let nodes = egraph[id].nodes.clone();
         for node in nodes {
             if is_legal_seq_node(egraph, &node) {
                 continue; // there already exists legal sequence node
             }
-            
+
             let mut new_forms = vec![];
             if let TileLang::Seq([left, right]) = node {
                 let mut seq_elements = vec![];
-    
+
                 // Step 1: Flatten recursively
                 flatten_seq(egraph, left, &mut seq_elements);
                 flatten_seq(egraph, right, &mut seq_elements);
@@ -35,12 +32,12 @@ pub fn postprocess_egraph(egraph: &mut EGraph) {
                 if seq_elements.is_empty() {
                     continue;
                 }
-    
+
                 // Step 2: Rebuild canonical nested structure
                 let mut iter = seq_elements.into_iter().rev();
-    
+
                 let mut current = iter.next().unwrap(); // last element (no seq_end)
-    
+
                 while let Some(prev) = iter.next() {
                     current = egraph.add(TileLang::Seq([prev, current]));
                 }
@@ -60,7 +57,7 @@ pub fn postprocess_egraph(egraph: &mut EGraph) {
         let nodes = egraph[id].nodes.clone();
         let mut legal = false;
         for node in nodes {
-            if let TileLang::Seq([left, right]) = node {
+            if let TileLang::Seq([_left, _right]) = node {
                 if is_legal_seq_node(egraph, &node) {
                     legal = true;
                 }
@@ -73,7 +70,7 @@ pub fn postprocess_egraph(egraph: &mut EGraph) {
             print_eclass(egraph, id);
         }
     }
-    
+
     egraph.rebuild();
 }
 
@@ -94,7 +91,7 @@ pub fn postprocess(input: &str) -> RecExpr<TileLang> {
                 else, substitute to PLoop()
 
                 if loop body is Seq() operator, substitute all reachable Loop() operator from the loop body to SLoop()
-            
+
     */
     let mut expr: RecExpr<TileLang> = input.parse().unwrap();
 
@@ -108,10 +105,13 @@ pub fn postprocess(input: &str) -> RecExpr<TileLang> {
     expr
 }
 
-pub fn postprocess_v2(input: &str, multi_enode_tile_sets: &Vec<HashSet<String>>) -> RecExpr<TileLang> {
+pub fn postprocess_v2(
+    input: &str,
+    multi_enode_tile_sets: &Vec<HashSet<String>>,
+) -> RecExpr<TileLang> {
     // Apply loop variable coherence check and substitution on string first
     let coherent_string = apply_loop_variable_coherence_string(input, multi_enode_tile_sets);
-    
+
     // Parse the coherent string into RecExpr
     let mut expr: RecExpr<TileLang> = coherent_string.parse().unwrap();
 
@@ -125,7 +125,10 @@ pub fn postprocess_v2(input: &str, multi_enode_tile_sets: &Vec<HashSet<String>>)
     expr
 }
 
-pub fn apply_loop_variable_coherence_string(input: &str, multi_enode_tile_sets: &Vec<HashSet<String>>) -> String {
+pub fn apply_loop_variable_coherence_string(
+    input: &str,
+    multi_enode_tile_sets: &Vec<HashSet<String>>,
+) -> String {
     let mut tile_equivalences: HashMap<String, Vec<String>> = HashMap::new();
 
     for tile_set in multi_enode_tile_sets {
@@ -139,15 +142,15 @@ pub fn apply_loop_variable_coherence_string(input: &str, multi_enode_tile_sets: 
     let mut result = input.to_string();
     let loop_scopes = find_loop_scopes(&result);
     let tile_elem_positions = find_tile_elem_expressions(&result);
-    
+
     // Apply substitutions from right to left to avoid position shifts
     let mut substitutions: Vec<(usize, usize, String)> = Vec::new();
-    
+
     for (start_pos, end_pos, expr_str) in tile_elem_positions.iter().rev() {
-        if let Some((op_type, var_name)) = parse_tile_elem_expr(expr_str) {
+        if let Some((_op_type, var_name)) = parse_tile_elem_expr(expr_str) {
             // Find which loops are in scope at this position
             let in_scope_vars = get_in_scope_vars(&loop_scopes, *start_pos);
-            
+
             // Check if current variable is in scope
             if !in_scope_vars.contains(&var_name) {
                 // Try to find an equivalent expression with in-scope variable
@@ -165,12 +168,12 @@ pub fn apply_loop_variable_coherence_string(input: &str, multi_enode_tile_sets: 
             }
         }
     }
-    
+
     // Apply all substitutions
     for (start, end, new_expr) in substitutions.iter().rev() {
         result.replace_range(*start..*end, new_expr);
     }
-    
+
     result
 }
 
@@ -186,16 +189,16 @@ fn find_loop_scopes(expr: &str) -> Vec<LoopScope> {
     let mut scopes = Vec::new();
     let chars: Vec<char> = expr.chars().collect();
     let mut i = 0;
-    
+
     while i < chars.len() {
-        if i + 5 < chars.len() && &chars[i..i+5] == ['(', 'l', 'o', 'o', 'p'] {
+        if i + 5 < chars.len() && &chars[i..i + 5] == ['(', 'l', 'o', 'o', 'p'] {
             if let Some(scope) = parse_loop_at_position(&chars, i) {
                 scopes.push(scope);
             }
         }
         i += 1;
     }
-    
+
     scopes
 }
 
@@ -204,20 +207,20 @@ fn find_tile_elem_expressions(expr: &str) -> Vec<(usize, usize, String)> {
     let mut expressions = Vec::new();
     let chars: Vec<char> = expr.chars().collect();
     let mut i = 0;
-    
+
     while i < chars.len() {
-        if i + 5 < chars.len() && &chars[i..i+5] == ['(', 't', 'i', 'l', 'e'] {
+        if i + 5 < chars.len() && &chars[i..i + 5] == ['(', 't', 'i', 'l', 'e'] {
             if let Some((end_pos, expr_str)) = extract_expression(&chars, i) {
                 expressions.push((i, end_pos, expr_str));
             }
-        } else if i + 5 < chars.len() && &chars[i..i+5] == ['(', 'e', 'l', 'e', 'm'] {
+        } else if i + 5 < chars.len() && &chars[i..i + 5] == ['(', 'e', 'l', 'e', 'm'] {
             if let Some((end_pos, expr_str)) = extract_expression(&chars, i) {
                 expressions.push((i, end_pos, expr_str));
             }
         }
         i += 1;
     }
-    
+
     expressions
 }
 
@@ -227,7 +230,7 @@ fn parse_loop_at_position(chars: &[char], start: usize) -> Option<LoopScope> {
     let mut paren_count = 0;
     let mut i = start;
     let mut end_pos = start;
-    
+
     while i < chars.len() {
         if chars[i] == '(' {
             paren_count += 1;
@@ -240,16 +243,16 @@ fn parse_loop_at_position(chars: &[char], start: usize) -> Option<LoopScope> {
         }
         i += 1;
     }
-    
+
     if end_pos == start {
         return None;
     }
-    
+
     // Extract the loop expression
     let loop_str: String = chars[start..end_pos].iter().collect();
-    
+
     // Parse the loop variable (4th argument)
-    let parts: Vec<&str> = loop_str[6..loop_str.len()-1].split_whitespace().collect();
+    let parts: Vec<&str> = loop_str[6..loop_str.len() - 1].split_whitespace().collect();
     if parts.len() >= 4 {
         Some(LoopScope {
             start_pos: start,
@@ -265,7 +268,7 @@ fn parse_loop_at_position(chars: &[char], start: usize) -> Option<LoopScope> {
 fn extract_expression(chars: &[char], start: usize) -> Option<(usize, String)> {
     let mut paren_count = 0;
     let mut i = start;
-    
+
     while i < chars.len() {
         if chars[i] == '(' {
             paren_count += 1;
@@ -278,35 +281,34 @@ fn extract_expression(chars: &[char], start: usize) -> Option<(usize, String)> {
         }
         i += 1;
     }
-    
+
     None
 }
 
 // Get variables that are in scope at a given position
 fn get_in_scope_vars(scopes: &[LoopScope], position: usize) -> HashSet<String> {
     let mut in_scope = HashSet::new();
-    
+
     for scope in scopes {
         if position >= scope.start_pos && position < scope.end_pos {
             in_scope.insert(scope.loop_var.clone());
         }
     }
-    
+
     in_scope
 }
 
 fn parse_tile_elem_expr(expr_str: &str) -> Option<(&str, String)> {
     if expr_str.starts_with("(tile ") && expr_str.ends_with(")") {
-        let var = expr_str[6..expr_str.len()-1].to_string();
+        let var = expr_str[6..expr_str.len() - 1].to_string();
         Some(("tile", var))
     } else if expr_str.starts_with("(elem ") && expr_str.ends_with(")") {
-        let var = expr_str[6..expr_str.len()-1].to_string();
+        let var = expr_str[6..expr_str.len() - 1].to_string();
         Some(("elem", var))
     } else {
         None
     }
 }
-
 
 pub fn deadcode_elimination(mut expr: RecExpr<TileLang>) -> RecExpr<TileLang> {
     let mut read_set = HashSet::new();
@@ -314,7 +316,7 @@ pub fn deadcode_elimination(mut expr: RecExpr<TileLang>) -> RecExpr<TileLang> {
     collect_read_set(&expr, root_idx, &mut read_set);
 
     eliminate_dead_stores(&mut expr, root_idx, &read_set);
-    
+
     expr
 }
 
@@ -322,7 +324,7 @@ pub fn collect_read_set(expr: &RecExpr<TileLang>, node_idx: usize, read_set: &mu
     if node_idx >= expr.as_ref().len() {
         return;
     }
-    
+
     let node = &expr.as_ref()[node_idx];
     match node {
         TileLang::Load([base_id, _]) => {
@@ -338,7 +340,11 @@ pub fn collect_read_set(expr: &RecExpr<TileLang>, node_idx: usize, read_set: &mu
     }
 }
 
-pub fn eliminate_dead_stores(expr: &mut RecExpr<TileLang>, node_idx: usize, read_set: &HashSet<String>) {
+pub fn eliminate_dead_stores(
+    expr: &mut RecExpr<TileLang>,
+    node_idx: usize,
+    read_set: &HashSet<String>,
+) {
     if node_idx >= expr.as_ref().len() {
         return;
     }
@@ -346,10 +352,12 @@ pub fn eliminate_dead_stores(expr: &mut RecExpr<TileLang>, node_idx: usize, read
     let node = expr.as_ref()[node_idx].clone();
 
     match node {
-        TileLang::Store([base_id, val_id, idx_id]) => {
+        TileLang::Store([base_id, _val_id, _idx_id]) => {
             if let Some(base_name) = get_base_name(expr, usize::from(base_id)) {
                 // Check if any basename overlaps with any element in read_set
-                let is_read = read_set.iter().any(|read_base| bases_overlap(&base_name, read_base));
+                let is_read = read_set
+                    .iter()
+                    .any(|read_base| bases_overlap(&base_name, read_base));
                 let is_output = is_output_base(expr, usize::from(base_id));
 
                 if !is_read && !is_output {
@@ -360,12 +368,11 @@ pub fn eliminate_dead_stores(expr: &mut RecExpr<TileLang>, node_idx: usize, read
         }
         _ => {}
     }
-    
+
     for &child_id in node.children() {
         eliminate_dead_stores(expr, usize::from(child_id), read_set);
     }
 }
-
 
 pub fn decide_loop_types(mut expr: RecExpr<TileLang>) -> RecExpr<TileLang> {
     let root_idx = expr.as_ref().len() - 1;
@@ -373,7 +380,11 @@ pub fn decide_loop_types(mut expr: RecExpr<TileLang>) -> RecExpr<TileLang> {
     expr
 }
 
-pub fn decide_loop_types_recursive(expr: &mut RecExpr<TileLang>, node_idx: usize, force_sequential: bool) {
+pub fn decide_loop_types_recursive(
+    expr: &mut RecExpr<TileLang>,
+    node_idx: usize,
+    force_sequential: bool,
+) {
     if node_idx >= expr.as_ref().len() {
         return;
     }
@@ -382,7 +393,8 @@ pub fn decide_loop_types_recursive(expr: &mut RecExpr<TileLang>, node_idx: usize
 
     match node {
         TileLang::Loop([start, end, tile, loop_var, body]) => {
-            let has_loop_carried_dep = has_loop_carried_dependency(expr, usize::from(body), usize::from(loop_var));
+            let has_loop_carried_dep =
+                has_loop_carried_dependency(expr, usize::from(body), usize::from(loop_var));
 
             let body_has_seq = contains_seq_operator(expr, usize::from(body));
 
@@ -410,9 +422,9 @@ pub fn contains_seq_operator(expr: &RecExpr<TileLang>, node_idx: usize) -> bool 
     if node_idx >= expr.as_ref().len() {
         return false;
     }
-    
+
     let node = &expr.as_ref()[node_idx];
-    
+
     match node {
         TileLang::Seq(_) => true,
         _ => {
@@ -435,14 +447,14 @@ pub fn collect_store_operations(expr: &RecExpr<TileLang>, node_idx: usize) -> Ve
 }
 
 fn collect_store_operations_recursive(
-    expr: &RecExpr<TileLang>, 
-    node_idx: usize, 
-    stores: &mut Vec<(Access, usize)>
+    expr: &RecExpr<TileLang>,
+    node_idx: usize,
+    stores: &mut Vec<(Access, usize)>,
 ) {
     if node_idx >= expr.as_ref().len() {
         return;
     }
-    
+
     let node = &expr.as_ref()[node_idx];
     match node {
         TileLang::Store([base_id, val_id, idx_id]) => {
@@ -468,14 +480,14 @@ pub fn value_depends_on_loop_var(expr: &RecExpr<TileLang>, val_idx: usize, loop_
     if val_idx >= expr.as_ref().len() {
         return false;
     }
-    
+
     let node = &expr.as_ref()[val_idx];
-    
+
     // Direct dependency check
     if expr_depends_on_recexpr(expr, node, loop_var) {
         return true;
     }
-    
+
     // Check for Load operations in the value expression
     match node {
         TileLang::Load([_, idx_id]) => {
@@ -494,16 +506,20 @@ pub fn value_depends_on_loop_var(expr: &RecExpr<TileLang>, val_idx: usize, loop_
             }
         }
     }
-    
+
     false
 }
 
-pub fn has_loop_carried_dependency(expr: &RecExpr<TileLang>, body_idx: usize, loop_var_idx: usize) -> bool {
+pub fn has_loop_carried_dependency(
+    expr: &RecExpr<TileLang>,
+    body_idx: usize,
+    loop_var_idx: usize,
+) -> bool {
     let loop_var_name = get_var_name(expr, loop_var_idx);
     if loop_var_name.is_none() {
         return false;
     }
-    
+
     let loop_var = loop_var_name.as_ref().unwrap();
 
     // Collect all store operations with their values
@@ -512,9 +528,11 @@ pub fn has_loop_carried_dependency(expr: &RecExpr<TileLang>, body_idx: usize, lo
     // Check each store operation
     for (write_access, val_idx) in store_operations {
         if !write_access.index.is_empty() {
-            let all_indices_independent = write_access.index.iter()
+            let all_indices_independent = write_access
+                .index
+                .iter()
                 .all(|index| !index_involves_loop_var(expr, index, loop_var));
-            
+
             if all_indices_independent {
                 // The write index doesn't depend on loop_var
                 // Now check if the value being stored depends on loop_var
@@ -536,11 +554,17 @@ pub fn has_loop_carried_dependency(expr: &RecExpr<TileLang>, body_idx: usize, lo
     false
 }
 
-pub fn involves_loop_variable_dependency(index1: &Option<TileLang>, index2: &Option<TileLang>, loop_var: &str, expr: &RecExpr<TileLang>) -> bool {
+pub fn involves_loop_variable_dependency(
+    index1: &Option<TileLang>,
+    index2: &Option<TileLang>,
+    loop_var: &str,
+    expr: &RecExpr<TileLang>,
+) -> bool {
     match (index1, index2) {
         (Some(idx1), Some(idx2)) => {
             // Check if either index involves the loop variable in a dependency-creating way
-            index_involves_loop_var(expr, idx1, loop_var) && index_involves_loop_var(expr, idx2, loop_var)
+            index_involves_loop_var(expr, idx1, loop_var)
+                && index_involves_loop_var(expr, idx2, loop_var)
         }
         _ => false,
     }
@@ -555,8 +579,12 @@ pub fn index_involves_loop_var(expr: &RecExpr<TileLang>, index: &TileLang, loop_
                     let node = &expr.as_ref()[node_idx];
                     match node {
                         TileLang::FullTile => false, // no dependency
-                        TileLang::Tile(tile_idx) => depends_on_id_recexpr(expr, *tile_idx, loop_var),
-                        TileLang::Elem(tile_idx) => depends_on_id_recexpr(expr, *tile_idx, loop_var),
+                        TileLang::Tile(tile_idx) => {
+                            depends_on_id_recexpr(expr, *tile_idx, loop_var)
+                        }
+                        TileLang::Elem(tile_idx) => {
+                            depends_on_id_recexpr(expr, *tile_idx, loop_var)
+                        }
                         TileLang::Index(_) => index_involves_loop_var(expr, node, loop_var),
                         _ => false, // not a tile structure
                     }
@@ -580,10 +608,9 @@ pub fn expr_depends_on_recexpr(expr: &RecExpr<TileLang>, node: &TileLang, loop_v
         | TileLang::Matmul([a, b]) => {
             depends_on_id_recexpr(expr, *a, loop_var) || depends_on_id_recexpr(expr, *b, loop_var)
         }
-        TileLang::Exp(a) |
-        TileLang::Sqr(a) |
-        TileLang::Sqrt(a) |
-        TileLang::Sigmoid(a) => depends_on_id_recexpr(expr, *a, loop_var),
+        TileLang::Exp(a) | TileLang::Sqr(a) | TileLang::Sqrt(a) | TileLang::Sigmoid(a) => {
+            depends_on_id_recexpr(expr, *a, loop_var)
+        }
         TileLang::ReduceSum([a, b]) => {
             depends_on_id_recexpr(expr, *a, loop_var) || depends_on_id_recexpr(expr, *b, loop_var)
         }
@@ -621,21 +648,21 @@ pub fn collect_memory_accesses(
             let base = get_base_name(expr, usize::from(*base_id));
             let index_node = get_index_node(expr, usize::from(*idx_id));
             let index = if let Some(idx) = index_node {
-                vec![idx]  // Create vector with single element
+                vec![idx] // Create vector with single element
             } else {
-                vec![]     // Create empty vector if no index
+                vec![] // Create empty vector if no index
             };
-            reads.push(Access{base, index});
-        },
+            reads.push(Access { base, index });
+        }
         TileLang::Store([base_id, _, idx_id]) => {
             let base = get_base_name(expr, usize::from(*base_id));
             let index_node = get_index_node(expr, usize::from(*idx_id));
             let index = if let Some(idx) = index_node {
-                vec![idx]  // Create vector with single element
+                vec![idx] // Create vector with single element
             } else {
-                vec![]     // Create empty vector if no index
+                vec![] // Create empty vector if no index
             };
-            writes.push(Access{base, index});
+            writes.push(Access { base, index });
         }
         _ => {}
     }
@@ -689,13 +716,13 @@ pub fn value_forward_substitution(expr: &mut RecExpr<TileLang>) -> bool {
 // Helper function to find all Loop nodes
 fn find_loop_nodes(expr: &RecExpr<TileLang>) -> Vec<Id> {
     let mut loop_nodes = Vec::new();
-    
+
     for (id, node) in expr.as_ref().iter().enumerate() {
         if matches!(node, TileLang::Loop(_)) {
             loop_nodes.push(Id::from(id));
         }
     }
-    
+
     loop_nodes
 }
 
@@ -736,12 +763,19 @@ pub fn extract_store_sequence(expr: &RecExpr<TileLang>, body_id: Id) -> Vec<Stor
 }
 
 pub fn is_reduction_operation(expr: &RecExpr<TileLang>, store_op: &StoreOperation) -> bool {
-    fn contains_matching_load(expr: &RecExpr<TileLang>, node_id: Id, target_base: Id, target_index: Id) -> bool {
+    fn contains_matching_load(
+        expr: &RecExpr<TileLang>,
+        node_id: Id,
+        target_base: Id,
+        target_index: Id,
+    ) -> bool {
         let node = &expr[node_id];
 
         match node {
             TileLang::Load([base, index]) => {
-                if bases_equivalent(expr, *base, target_base) && indices_equivalent(expr, *index, target_index) {
+                if bases_equivalent(expr, *base, target_base)
+                    && indices_equivalent(expr, *index, target_index)
+                {
                     return true;
                 }
             }
@@ -766,8 +800,14 @@ pub fn find_substitutable_loads(
     let mut loads = Vec::new();
     let target_store = &store_ops[target_position];
 
-    for store_op in store_ops.iter().skip(target_position+1) {
-        find_loads_in_subtree(expr, store_op.val, target_store.base, target_store.index, &mut loads);
+    for store_op in store_ops.iter().skip(target_position + 1) {
+        find_loads_in_subtree(
+            expr,
+            store_op.val,
+            target_store.base,
+            target_store.index,
+            &mut loads,
+        );
     }
     loads
 }
@@ -783,7 +823,9 @@ fn find_loads_in_subtree(
 
     match node {
         TileLang::Load([base, index]) => {
-            if bases_equivalent(expr, *base, target_base) && indices_equivalent(expr, *index, target_index) {
+            if bases_equivalent(expr, *base, target_base)
+                && indices_equivalent(expr, *index, target_index)
+            {
                 loads.push(LoadOperation {
                     base: *base,
                     index: *index,
@@ -813,7 +855,7 @@ pub fn substitute_loads(
 pub fn bases_equivalent(expr: &RecExpr<TileLang>, base1: Id, base2: Id) -> bool {
     let base1_name = get_base_name(expr, usize::from(base1));
     let base2_name = get_base_name(expr, usize::from(base2));
-    
+
     match (base1_name, base2_name) {
         (Some(name1), Some(name2)) => name1 == name2,
         _ => false,
@@ -824,7 +866,7 @@ pub fn bases_equivalent(expr: &RecExpr<TileLang>, base1: Id, base2: Id) -> bool 
 pub fn indices_equivalent(expr: &RecExpr<TileLang>, index1: Id, index2: Id) -> bool {
     let node1 = get_index_node(expr, usize::from(index1));
     let node2 = get_index_node(expr, usize::from(index2));
-    
+
     match (node1, node2) {
         (Some(n1), Some(n2)) => nodes_equivalent(expr, &n1, &n2),
         _ => false,
@@ -838,8 +880,8 @@ fn nodes_equivalent(expr: &RecExpr<TileLang>, node1: &TileLang, node2: &TileLang
         (TileLang::Num(n1), TileLang::Num(n2)) => n1 == n2,
         (TileLang::Add([a1, b1]), TileLang::Add([a2, b2])) => {
             // Check both orders for commutative operations
-            (indices_equivalent(expr, *a1, *a2) && indices_equivalent(expr, *b1, *b2)) ||
-            (indices_equivalent(expr, *a1, *b2) && indices_equivalent(expr, *b1, *a2))
+            (indices_equivalent(expr, *a1, *a2) && indices_equivalent(expr, *b1, *b2))
+                || (indices_equivalent(expr, *a1, *b2) && indices_equivalent(expr, *b1, *a2))
         }
         (TileLang::Sub([a1, b1]), TileLang::Sub([a2, b2])) => {
             // Non-commutative
@@ -847,8 +889,8 @@ fn nodes_equivalent(expr: &RecExpr<TileLang>, node1: &TileLang, node2: &TileLang
         }
         (TileLang::Mul([a1, b1]), TileLang::Mul([a2, b2])) => {
             // Commutative
-            (indices_equivalent(expr, *a1, *a2) && indices_equivalent(expr, *b1, *b2)) ||
-            (indices_equivalent(expr, *a1, *b2) && indices_equivalent(expr, *b1, *a2))
+            (indices_equivalent(expr, *a1, *a2) && indices_equivalent(expr, *b1, *b2))
+                || (indices_equivalent(expr, *a1, *b2) && indices_equivalent(expr, *b1, *a2))
         }
         (TileLang::Div([a1, b1]), TileLang::Div([a2, b2])) => {
             // Non-commutative
@@ -861,7 +903,9 @@ fn nodes_equivalent(expr: &RecExpr<TileLang>, node1: &TileLang, node2: &TileLang
             if idx1.len() != idx2.len() {
                 return false;
             }
-            idx1.iter().zip(idx2.iter()).all(|(i1, i2)| indices_equivalent(expr, *i1, *i2))
+            idx1.iter()
+                .zip(idx2.iter())
+                .all(|(i1, i2)| indices_equivalent(expr, *i1, *i2))
         }
         (TileLang::FullTile, TileLang::FullTile) => true,
         (TileLang::ConstTile([a1, b1]), TileLang::ConstTile([a2, b2])) => {
