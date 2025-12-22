@@ -117,8 +117,6 @@ impl FineGrainedCostModel {
         match (left_shape, right_shape) {
             (Some(left), Some(right)) => {
                 if left.dims.len() >= 2 && right.dims.len() >= 2 {
-                    let mut flops = 1u64;
-
                     let batch_size = if left.dims.len() > 2 {
                         self.calculate_batch_size(&left.dims[..left.dims.len() - 2])
                     } else {
@@ -138,8 +136,7 @@ impl FineGrainedCostModel {
                         _ => return 0,
                     };
 
-                    flops = batch_size * m * n * (2 * k - 1);
-                    flops
+                    batch_size * m * n * (2 * k - 1)
                 } else {
                     0
                 }
