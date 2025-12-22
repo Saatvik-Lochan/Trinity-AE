@@ -3,7 +3,7 @@ use egg::*;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufWriter, Read, Write};
+use std::io::{BufWriter, Write};
 
 /// Save the raw egraph structure to a file with proper ID references
 pub fn save_raw_egraph(
