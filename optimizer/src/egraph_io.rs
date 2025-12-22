@@ -153,7 +153,7 @@ pub fn load_raw_egraph(filepath: &str) -> Result<EGraph<TileLang, LoopAnalysis>,
     #[derive(Debug)]
     struct ClassData {
         id: Id,
-        canonical_id: Id,
+        _canonical_id: Id,
         nodes: Vec<String>,
     }
 
@@ -186,7 +186,7 @@ pub fn load_raw_egraph(filepath: &str) -> Result<EGraph<TileLang, LoopAnalysis>,
                 {
                     current_class = Some(ClassData {
                         id: Id::from(id),
-                        canonical_id: Id::from(canonical_id),
+                        _canonical_id: Id::from(canonical_id),
                         nodes: Vec::new(),
                     });
                 }
