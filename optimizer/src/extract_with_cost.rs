@@ -218,15 +218,11 @@ pub fn enumerate_recursive_with_cost_v2(
     }
 
     if depth > MAX_DEPTH {
-        return if max_cost >= 0 {
-            vec![SemiExpressionResult {
-                semi_expression: format!("depth_limit"),
-                cost: KernelCost::zero(),
-                choices: vec![],
-            }]
-        } else {
-            vec![]
-        };
+        return vec![SemiExpressionResult {
+            semi_expression: format!("depth_limit"),
+            cost: KernelCost::zero(),
+            choices: vec![],
+        }];
     }
 
     // Increment visit count
@@ -1054,11 +1050,7 @@ pub fn enumerate_recursive_with_cost(
 
     // Depth limit
     if depth > MAX_DEPTH {
-        return if max_cost >= 0 {
-            vec![(format!("depth_limit"), KernelCost::zero())]
-        } else {
-            vec![]
-        };
+        return vec![(format!("depth_limit"), KernelCost::zero())];
     }
 
     visited.insert(eclass_id);
