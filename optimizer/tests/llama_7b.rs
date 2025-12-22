@@ -1,13 +1,13 @@
+use egg::*;
 use egg::{test_fn2, test_fn_not2, *};
+use rayon::prelude::*;
+use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
-use std::fs::File;
-use rayon::prelude::*;
-use trinity::*;
-use trinity::language::{TileLang, LoopAnalysis, SHAPE_TRACKER};
-use trinity::shape::{ShapeTracker, TensorShape, Dimension};
-use egg::*;
 use std::sync::Once;
+use trinity::language::{LoopAnalysis, TileLang, SHAPE_TRACKER};
+use trinity::shape::{Dimension, ShapeTracker, TensorShape};
+use trinity::*;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
@@ -43,7 +43,7 @@ fn extract_expressions() {
         ("Q", vec![32, 16, 128]),
         ("K", vec![32, 16, 128]),
         ("V", vec![32, 16, 128]),
-        ("K_cache", vec![32, 512+16, 128]),
+        ("K_cache", vec![32, 512 + 16, 128]),
         ("V_cache", vec![32, 528, 128]),
         ("C", vec![32, 16, 528]),
         ("C_exp", vec![32, 16, 528]),
@@ -52,9 +52,8 @@ fn extract_expressions() {
         ("O", vec![32, 16, 128]),
         ("O1", vec![16, 32, 128]),
         ("O2", vec![16, 4096]),
-
     ]);
-    
+
     let expr = "
 (seq
     (loop 0 4096 tile_n n
@@ -280,47 +279,58 @@ fn extract_expressions() {
     // let cost_expressions_v3 = list_expressions_with_target_cost_v3(&runner);
     // println!("[Cost model v3] There are {:?} expressions", cost_expressions_v3.len());
 
-    match list_expressions_with_target_cost_v3_part1(&runner, "/home/jhpark676/Project/trinity/expressions/semi/llama7b_attacc_cost3_kern2.json", 3, 2) {
+    match list_expressions_with_target_cost_v3_part1(
+        &runner,
+        "/home/jhpark676/Project/trinity/expressions/semi/llama7b_attacc_cost3_kern2.json",
+        3,
+        2,
+    ) {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
-    
+
     // Load expressions
     // let expressions = match list_expressions_with_target_cost_v3_part2(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json") {
     // let expressions = match list_expressions_from_semi_all(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json", 27) {
     // let expressions = match list_expressions_from_semi_naive(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json", 27) {
-    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(&runner, "/home/jhpark676/Project/trinity/expressions/semi/llama7b_attacc_cost3_kern2.json", usize::MAX) {
+    let (expressions, tile_sets) = match list_expressions_from_semi_with_cost(
+        &runner,
+        "/home/jhpark676/Project/trinity/expressions/semi/llama7b_attacc_cost3_kern2.json",
+        usize::MAX,
+    ) {
         Ok((expressions, tile_sets)) => {
             println!("Loaded {} final expressions", expressions.len());
             (expressions, tile_sets)
-        },
+        }
         Err(e) => {
             println!("Load error: {}", e);
             return;
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/llama7b_attacc_cost3_kern2.txt").expect("Failed to create file");
+    let file =
+        File::create("/home/jhpark676/Project/trinity/expressions/llama7b_attacc_cost3_kern2.txt")
+            .expect("Failed to create file");
     // let file = File::create("tmp.txt").expect("aa");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             writeln!(writer, "{}", line).expect("Failed to write to file");
         });
-    
+
     writer.flush().expect("Failed to flush writer");
 }
 
-egg::test_fn2!{test_expressions, rules(),
+egg::test_fn2! {test_expressions, rules(),
 "
 (seq
     (loop 0 4096 tile_k k

@@ -1,14 +1,14 @@
+use egg::*;
 use egg::{test_fn2, test_fn_not2, *};
+use rayon::prelude::*;
+use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
-use std::fs::File;
-use rayon::prelude::*;
-use trinity::*;
-use trinity::language::{TileLang, LoopAnalysis, SHAPE_TRACKER};
-use trinity::shape::{ShapeTracker, TensorShape, Dimension};
-use trinity::cost::{create_fine_grained_extractor};
-use egg::*;
 use std::sync::Once;
+use trinity::cost::create_fine_grained_extractor;
+use trinity::language::{LoopAnalysis, TileLang, SHAPE_TRACKER};
+use trinity::shape::{Dimension, ShapeTracker, TensorShape};
+use trinity::*;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
@@ -44,7 +44,7 @@ fn extract_rmsnorm_expressions() {
         ("Q", vec![71, 16, 64]),
         ("K", vec![71, 16, 64]),
         ("V", vec![71, 16, 64]),
-        ("K_cache", vec![71, 512+16, 64]),
+        ("K_cache", vec![71, 512 + 16, 64]),
         ("V_cache", vec![71, 528, 64]),
         ("C", vec![71, 16, 528]),
         ("C_exp", vec![71, 16, 528]),
@@ -54,7 +54,7 @@ fn extract_rmsnorm_expressions() {
         ("O1", vec![16, 71, 64]),
         ("O2", vec![16, 4544]),
     ]);
-    
+
     let expr = "
 (seq
     (loop 0 4544 tile_k k
@@ -163,7 +163,7 @@ fn extract_rmsnorm_expressions() {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
-    
+
     // Load expressions
     // let expressions = match list_expressions_with_target_cost_v3_part2(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json") {
     // let expressions = match list_expressions_from_semi_all(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json", 27) {
@@ -179,23 +179,26 @@ fn extract_rmsnorm_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/falcon7b_rmsnorm_cost3_kern2_wo_scheduler.txt").expect("Failed to create file");
+    let file = File::create(
+        "/home/jhpark676/Project/trinity/expressions/falcon7b_rmsnorm_cost3_kern2_wo_scheduler.txt",
+    )
+    .expect("Failed to create file");
     // let file = File::create("tmp.txt").expect("aa");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             writeln!(writer, "{}", line).expect("Failed to write to file");
         });
-    
+
     writer.flush().expect("Failed to flush writer");
 }
 
@@ -215,7 +218,7 @@ fn extract_qkvattn_expressions() {
         ("Q", vec![71, 16, 64]),
         ("K", vec![71, 16, 64]),
         ("V", vec![71, 16, 64]),
-        ("K_cache", vec![71, 512+16, 64]),
+        ("K_cache", vec![71, 512 + 16, 64]),
         ("V_cache", vec![71, 528, 64]),
         ("C", vec![71, 16, 528]),
         ("C_exp", vec![71, 16, 528]),
@@ -225,7 +228,7 @@ fn extract_qkvattn_expressions() {
         ("O1", vec![16, 71, 64]),
         ("O2", vec![16, 4544]),
     ]);
-    
+
     let expr = "
 (seq
     (loop 0 4544 tile_k k
@@ -422,7 +425,7 @@ fn extract_qkvattn_expressions() {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
-    
+
     // Load expressions
     // let expressions = match list_expressions_with_target_cost_v3_part2(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json") {
     // let expressions = match list_expressions_from_semi_all(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json", 27) {
@@ -438,23 +441,26 @@ fn extract_qkvattn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/falcon7b_attacc_cost3_kern2_wo_scheduler.txt").expect("Failed to create file");
+    let file = File::create(
+        "/home/jhpark676/Project/trinity/expressions/falcon7b_attacc_cost3_kern2_wo_scheduler.txt",
+    )
+    .expect("Failed to create file");
     // let file = File::create("tmp.txt").expect("aa");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             writeln!(writer, "{}", line).expect("Failed to write to file");
         });
-    
+
     writer.flush().expect("Failed to flush writer");
 }
 
@@ -475,7 +481,7 @@ fn extract_whole_expressions() {
         ("Q", vec![71, 16, 64]),
         ("K", vec![71, 16, 64]),
         ("V", vec![71, 16, 64]),
-        ("K_cache", vec![71, 512+16, 64]),
+        ("K_cache", vec![71, 512 + 16, 64]),
         ("V_cache", vec![71, 528, 64]),
         ("C", vec![71, 16, 528]),
         ("C_exp", vec![71, 16, 528]),
@@ -486,7 +492,7 @@ fn extract_whole_expressions() {
         ("O2", vec![16, 4544]),
         ("X2", vec![16]),
     ]);
-    
+
     let expr = "
 (seq
     (loop 0 4544 tile_k k
@@ -747,7 +753,7 @@ fn extract_whole_expressions() {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
-    
+
     // Load expressions
     // let expressions = match list_expressions_with_target_cost_v3_part2(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json") {
     // let expressions = match list_expressions_from_semi_all(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json", 27) {
@@ -766,20 +772,20 @@ fn extract_whole_expressions() {
     let file = File::create("/home/jhpark676/Project/trinity/expressions/falcon7b_rmsnorm_attacc_cost6_kern2_wo_scheduler.txt").expect("Failed to create file");
     // let file = File::create("tmp.txt").expect("aa");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             writeln!(writer, "{}", line).expect("Failed to write to file");
         });
-    
+
     writer.flush().expect("Failed to flush writer");
 }
 
@@ -800,7 +806,7 @@ fn extract_rmsnorm_qkv_attn_expressions() {
         ("Q", vec![71, 16, 64]),
         ("K", vec![71, 16, 64]),
         ("V", vec![71, 16, 64]),
-        ("K_cache", vec![71, 512+16, 64]),
+        ("K_cache", vec![71, 512 + 16, 64]),
         ("V_cache", vec![71, 528, 64]),
         ("C", vec![71, 16, 528]),
         ("C_exp", vec![71, 16, 528]),
@@ -811,7 +817,7 @@ fn extract_rmsnorm_qkv_attn_expressions() {
         ("O2", vec![16, 4544]),
         ("X2", vec![16]),
     ]);
-    
+
     let expr = "
 (seq
     (loop 0 4544 tile_k k
@@ -1008,7 +1014,7 @@ fn extract_rmsnorm_qkv_attn_expressions() {
     //     Ok(count) => println!("Saved {} expressions", count),
     //     Err(e) => eprintln!("Save error: {}", e),
     // }
-    
+
     // Load expressions
     // let expressions = match list_expressions_with_target_cost_v3_part2(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json") {
     // let expressions = match list_expressions_from_semi_all(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json", 27) {
@@ -1028,20 +1034,20 @@ fn extract_rmsnorm_qkv_attn_expressions() {
     let file = File::create("/home/jhpark676/Project/trinity/expressions/falcon7b_rmsnorm_qkv_attn_cost6_kern1_wo_scheduler3.txt").expect("Failed to create file");
     // let file = File::create("tmp.txt").expect("aa");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             writeln!(writer, "{}", line).expect("Failed to write to file");
         });
-    
+
     writer.flush().expect("Failed to flush writer");
 }
 
@@ -1067,7 +1073,7 @@ fn extract_ffn_expressions() {
         ("O_FF1", vec![16]),
         ("O_FF_norm", vec![16, 4544]),
     ]);
-    
+
     let expr = "
 (seq
     (loop 0 4544 tile_n n
@@ -1259,7 +1265,7 @@ fn extract_ffn_expressions() {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
-    
+
     // Load expressions
     // let expressions = match list_expressions_with_target_cost_v3_part2(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json") {
     // let expressions = match list_expressions_from_semi_all(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json", 27) {
@@ -1275,25 +1281,28 @@ fn extract_ffn_expressions() {
         }
     };
 
-    let file = File::create("/home/jhpark676/Project/trinity/expressions/falcon7b_ffn_cost6_kern5_wo_scheduler2.txt").expect("Failed to create file");
+    let file = File::create(
+        "/home/jhpark676/Project/trinity/expressions/falcon7b_ffn_cost6_kern5_wo_scheduler2.txt",
+    )
+    .expect("Failed to create file");
     // let file = File::create("tmp.txt").expect("aa");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             if !line.contains("dummydata") {
                 writeln!(writer, "{}", line).expect("Failed to write to file");
             }
         });
-    
+
     writer.flush().expect("Failed to flush writer");
 }
 
@@ -1319,7 +1328,7 @@ fn extract_gatedmlp_expressions() {
         ("O_FF1", vec![16]),
         ("O_FF_norm", vec![16, 4544]),
     ]);
-    
+
     let expr = "
 (seq
     (loop 0 4544 tile_n n
@@ -1402,7 +1411,7 @@ fn extract_gatedmlp_expressions() {
         Ok(count) => println!("Saved {} expressions", count),
         Err(e) => eprintln!("Save error: {}", e),
     }
-    
+
     // Load expressions
     // let expressions = match list_expressions_with_target_cost_v3_part2(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json") {
     // let expressions = match list_expressions_from_semi_all(&runner, "/home/jhpark676/Project/trinity/expressions/semi/attacc_cost3_kern2.json", 27) {
@@ -1421,24 +1430,24 @@ fn extract_gatedmlp_expressions() {
     let file = File::create("/home/jhpark676/Project/trinity/expressions/falcon7b_gatedmlp_cost3_kern1_wo_scheduler.txt").expect("Failed to create file");
     // let file = File::create("tmp.txt").expect("aa");
     let mut writer = BufWriter::new(file);
-    
+
     expressions
         .par_iter()
         .enumerate()
         .map(|(i, expr)| {
             let new_expr = postprocess_v2(expr, &tile_sets);
-            format!("{}: {}", i, new_expr)  // Convert to String here
+            format!("{}: {}", i, new_expr) // Convert to String here
         })
-        .collect::<Vec<String>>()  // Now collecting Vec<String>
+        .collect::<Vec<String>>() // Now collecting Vec<String>
         .iter()
         .for_each(|line| {
             writeln!(writer, "{}", line).expect("Failed to write to file");
         });
-    
+
     writer.flush().expect("Failed to flush writer");
 }
 
-egg::test_fn2!{test_rmsnorm_attacc_hacked, rules(),
+egg::test_fn2! {test_rmsnorm_attacc_hacked, rules(),
 "
 (seq
     (loop 0 4544 tile_k k

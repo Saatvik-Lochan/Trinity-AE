@@ -1,12 +1,11 @@
 //! Dependency analysis predicates for rewrite rules
 
-use egg::{Id, Subst, Var};
-use crate::language::TileLang;
 use crate::language::LoopAnalysis;
+use crate::language::TileLang;
 use crate::utils::*;
+use egg::{Id, Subst, Var};
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
-
 
 // body1과 body2가 loopvar에 대해서 raw hazard가 없음
 pub fn no_raw_dependency(
@@ -45,7 +44,7 @@ pub fn no_raw_dependency(
                         // println!("Read: {:?}", r2);
                         return false;
                     }
-                    
+
                     if has_cross_iteration_dependency(w1, &d1_reads, &loop_var_str, egraph) {
                         // println!("Dependency!");
                         // println!("{:?}", w1);
@@ -112,12 +111,18 @@ pub fn no_dependency_with_base(
         let base = get_base_name_egraph(egraph, base_id);
 
         for r in &reads {
-            if r.base.as_ref().map_or(false, |b| base.as_ref().map_or(false, |base_str| bases_overlap(b, base_str))) {
+            if r.base.as_ref().map_or(false, |b| {
+                base.as_ref()
+                    .map_or(false, |base_str| bases_overlap(b, base_str))
+            }) {
                 return false;
             }
         }
         for w in &writes {
-            if w.base.as_ref().map_or(false, |b| base.as_ref().map_or(false, |base_str| bases_overlap(b, base_str))) {
+            if w.base.as_ref().map_or(false, |b| {
+                base.as_ref()
+                    .map_or(false, |base_str| bases_overlap(b, base_str))
+            }) {
                 return false;
             }
         }
@@ -126,7 +131,10 @@ pub fn no_dependency_with_base(
 }
 
 // body의 read/write set이 loop_var의 영향을 전혀 받지 않음
-pub fn no_dependency_with_loopvar(body: Var, loop_var: Var) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+pub fn no_dependency_with_loopvar(
+    body: Var,
+    loop_var: Var,
+) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     move |egraph, _eclass, subst| {
         let body_id = subst[body];
         let loop_var_id = subst[loop_var];
@@ -163,7 +171,10 @@ pub fn no_dependency_with_loopvar(body: Var, loop_var: Var) -> impl Fn(&mut EGra
     }
 }
 
-pub fn has_dependency_with_loopvar(body: Var, loop_var: Var) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+pub fn has_dependency_with_loopvar(
+    body: Var,
+    loop_var: Var,
+) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     move |egraph, _eclass, subst| {
         let body_id = subst[body];
         let loop_var_id = subst[loop_var];
@@ -199,5 +210,3 @@ pub fn has_dependency_with_loopvar(body: Var, loop_var: Var) -> impl Fn(&mut EGr
         false
     }
 }
-
-

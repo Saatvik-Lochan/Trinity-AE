@@ -1,14 +1,17 @@
 //! Utility functions used across multiple modules
 
-use egg::*;
 use crate::language::TileLang;
-use crate::language::{LoopAnalysis, Access};
-use std::collections::{HashSet, VecDeque, HashMap};
+use crate::language::{Access, LoopAnalysis};
+use egg::*;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
-
-pub fn collect_access_sets(egraph: &EGraph, root: Id, need_source: bool) -> (Vec<Access>, Vec<Access>) {
+pub fn collect_access_sets(
+    egraph: &EGraph,
+    root: Id,
+    need_source: bool,
+) -> (Vec<Access>, Vec<Access>) {
     let mut read_set = vec![];
     let mut write_set = vec![];
     let mut visited = HashSet::new();
@@ -30,12 +33,18 @@ pub fn collect_access_sets(egraph: &EGraph, root: Id, need_source: bool) -> (Vec
                 TileLang::Load([base, idx]) => {
                     for base_node in &egraph[*base].nodes {
                         match base_node {
-                            TileLang::Input(tensor_id) | TileLang::Output(tensor_id) | TileLang::Tensor(tensor_id) => {
+                            TileLang::Input(tensor_id)
+                            | TileLang::Output(tensor_id)
+                            | TileLang::Tensor(tensor_id) => {
                                 for tensor_node in &egraph[*tensor_id].nodes {
                                     if let TileLang::Var(sym) = tensor_node {
                                         let base_name = sym.as_str().to_string();
                                         let idx_expr = extract_expr(egraph, *idx);
-                                        let src = if need_source { Some(enode.clone()) } else { None };
+                                        let src = if need_source {
+                                            Some(enode.clone())
+                                        } else {
+                                            None
+                                        };
                                         read_set.push(Access {
                                             base: Some(base_name),
                                             index: idx_expr,
@@ -64,12 +73,18 @@ pub fn collect_access_sets(egraph: &EGraph, root: Id, need_source: bool) -> (Vec
                 TileLang::Store([base, _val, idx]) => {
                     for base_node in &egraph[*base].nodes {
                         match base_node {
-                            TileLang::Input(tensor_id) | TileLang::Output(tensor_id) | TileLang::Tensor(tensor_id) => {
+                            TileLang::Input(tensor_id)
+                            | TileLang::Output(tensor_id)
+                            | TileLang::Tensor(tensor_id) => {
                                 for tensor_node in &egraph[*tensor_id].nodes {
                                     if let TileLang::Var(sym) = tensor_node {
                                         let base_name = sym.as_str().to_string();
                                         let idx_expr = extract_expr(egraph, *idx);
-                                        let src = if need_source { Some(enode.clone()) } else { None };
+                                        let src = if need_source {
+                                            Some(enode.clone())
+                                        } else {
+                                            None
+                                        };
                                         write_set.push(Access {
                                             base: Some(base_name),
                                             index: idx_expr,
@@ -107,8 +122,7 @@ pub fn collect_access_sets(egraph: &EGraph, root: Id, need_source: bool) -> (Vec
     (read_set, write_set)
 }
 
-
-/// Flatten a nested seq structure into a list of elements 
+/// Flatten a nested seq structure into a list of elements
 pub fn flatten_seq(egraph: &EGraph, id: Id, out: &mut Vec<Id>) {
     let data = &egraph[id].data;
 
@@ -180,15 +194,15 @@ pub fn flatten_seq_all_branch(egraph: &EGraph, id: Id, should_legal: bool) -> Ve
         if data.is_deleted.contains(node) {
             continue;
         }
-        
+
         if let TileLang::Seq([left, right]) = node {
             if should_legal && !is_legal_seq_node(egraph, node) {
                 continue; // Skip illegal sequences
             }
-            
+
             let left_seqs = flatten_seq_all_branch(egraph, *left, true);
             let right_seqs = flatten_seq_all_branch(egraph, *right, true);
-            
+
             // Cartesian product of left and right sequences
             for left_seq in &left_seqs {
                 for right_seq in &right_seqs {
@@ -199,12 +213,12 @@ pub fn flatten_seq_all_branch(egraph: &EGraph, id: Id, should_legal: bool) -> Ve
             }
         }
     }
-    
+
     // If no sequences found, treat as leaf
     if all_sequences.is_empty() {
         all_sequences.push(vec![id]);
     }
-    
+
     all_sequences
 }
 
@@ -236,11 +250,7 @@ pub fn extract_expr(egraph: &EGraph, id: Id) -> Vec<TileLang> {
     egraph[id].nodes.iter().cloned().collect()
 }
 
-
-pub fn extract_store_info(
-    egraph: &EGraph,
-    id: Id,
-) -> Option<(String, Vec<TileLang>, Id)> {
+pub fn extract_store_info(egraph: &EGraph, id: Id) -> Option<(String, Vec<TileLang>, Id)> {
     let data = &egraph[id].data;
     for enode in &egraph[id].nodes {
         if data.is_deleted.contains(&enode) {
@@ -250,7 +260,9 @@ pub fn extract_store_info(
             // base_id should point to TileLang::Input(Var(sym))
             for base_node in &egraph[*base_id].nodes {
                 match base_node {
-                    TileLang::Input(tensor_id) | TileLang::Output(tensor_id) | TileLang::Tensor(tensor_id) => {
+                    TileLang::Input(tensor_id)
+                    | TileLang::Output(tensor_id)
+                    | TileLang::Tensor(tensor_id) => {
                         for tensor_node in &egraph[*tensor_id].nodes {
                             if let TileLang::Var(sym) = tensor_node {
                                 let base_name = sym.as_str().to_string();
@@ -330,7 +342,7 @@ pub fn get_base_name(expr: &RecExpr<TileLang>, node_idx: usize) -> Option<String
     match node {
         TileLang::Input(tensor_id) | TileLang::Output(tensor_id) | TileLang::Tensor(tensor_id) => {
             get_var_name(expr, usize::from(*tensor_id))
-        },
+        }
         TileLang::Var(symbol) => Some(symbol.to_string()),
         _ => None,
     }
@@ -393,7 +405,6 @@ pub fn has_cross_iteration_dependency(
     loop_var: &str,
     egraph: &EGraph,
 ) -> bool {
-
     for write_idx in &write.index {
         if index_depends_on(write_idx, egraph, loop_var) {
             return false;
@@ -552,11 +563,7 @@ pub fn not_same_loop(
         let body2_id = subst[body2];
         let data = &egraph[body2_id].data;
 
-        let expected_header = (
-            subst[n],
-            subst[tile_n],
-            subst[loop_var],
-        );
+        let expected_header = (subst[n], subst[tile_n], subst[loop_var]);
 
         for node in &egraph[body2_id].nodes {
             if data.is_deleted.contains(node) {
@@ -592,10 +599,7 @@ pub fn get_base_name_egraph(egraph: &EGraph, id: Id) -> Option<String> {
     None
 }
 
-pub fn is_same_base(
-    a_var: Var,
-    b_var: Var,
-) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+pub fn is_same_base(a_var: Var, b_var: Var) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     move |egraph, _eclass, subst| {
         let a_id = subst[a_var];
         let b_id = subst[b_var];
@@ -633,7 +637,7 @@ pub fn base_overlap(access1: &Access, access2: &Access) -> bool {
 pub fn bases_overlap(base1: &str, base2: &str) -> bool {
     let bases1: Vec<&str> = base1.split(',').map(|s| s.trim()).collect();
     let bases2: Vec<&str> = base2.split(',').map(|s| s.trim()).collect();
-    
+
     for b1 in &bases1 {
         for b2 in &bases2 {
             if b1 == b2 {
@@ -648,13 +652,13 @@ pub fn indices_are_same(egraph: &EGraph, indices1: &[TileLang], indices2: &[Tile
     if indices1.len() != indices2.len() {
         return false;
     }
-    
+
     for (idx1, idx2) in indices1.iter().zip(indices2) {
         if !index_expressions_equal(egraph, idx1, idx2) {
             return false;
         }
     }
-    
+
     true
 }
 
@@ -663,29 +667,43 @@ fn index_expressions_equal(egraph: &EGraph, expr1: &TileLang, expr2: &TileLang) 
     if matches!(expr1, TileLang::ConstTile(_)) || matches!(expr2, TileLang::ConstTile(_)) {
         return true;
     }
-    
+
     match (expr1, expr2) {
         (TileLang::Num(n1), TileLang::Num(n2)) => n1 == n2,
         (TileLang::Var(v1), TileLang::Var(v2)) => v1 == v2,
-        (TileLang::Add([l1, r1]), TileLang::Add([l2, r2])) |
-        (TileLang::Mul([l1, r1]), TileLang::Mul([l2, r2])) => {
+        (TileLang::Add([l1, r1]), TileLang::Add([l2, r2]))
+        | (TileLang::Mul([l1, r1]), TileLang::Mul([l2, r2])) => {
             let l1_nodes = &egraph[*l1].nodes;
             let r1_nodes = &egraph[*r1].nodes;
             let l2_nodes = &egraph[*l2].nodes;
             let r2_nodes = &egraph[*r2].nodes;
-            
-            l1_nodes.iter().any(|n1| l2_nodes.iter().any(|n2| index_expressions_equal(egraph, n1, n2))) &&
-            r1_nodes.iter().any(|n1| r2_nodes.iter().any(|n2| index_expressions_equal(egraph, n1, n2)))
+
+            l1_nodes.iter().any(|n1| {
+                l2_nodes
+                    .iter()
+                    .any(|n2| index_expressions_equal(egraph, n1, n2))
+            }) && r1_nodes.iter().any(|n1| {
+                r2_nodes
+                    .iter()
+                    .any(|n2| index_expressions_equal(egraph, n1, n2))
+            })
         }
-        (TileLang::Sub([l1, r1]), TileLang::Sub([l2, r2])) |
-        (TileLang::Div([l1, r1]), TileLang::Div([l2, r2])) => {
+        (TileLang::Sub([l1, r1]), TileLang::Sub([l2, r2]))
+        | (TileLang::Div([l1, r1]), TileLang::Div([l2, r2])) => {
             let l1_nodes = &egraph[*l1].nodes;
             let r1_nodes = &egraph[*r1].nodes;
             let l2_nodes = &egraph[*l2].nodes;
             let r2_nodes = &egraph[*r2].nodes;
-            
-            l1_nodes.iter().any(|n1| l2_nodes.iter().any(|n2| index_expressions_equal(egraph, n1, n2))) &&
-            r1_nodes.iter().any(|n1| r2_nodes.iter().any(|n2| index_expressions_equal(egraph, n1, n2)))
+
+            l1_nodes.iter().any(|n1| {
+                l2_nodes
+                    .iter()
+                    .any(|n2| index_expressions_equal(egraph, n1, n2))
+            }) && r1_nodes.iter().any(|n1| {
+                r2_nodes
+                    .iter()
+                    .any(|n2| index_expressions_equal(egraph, n1, n2))
+            })
         }
         (TileLang::Index(args1), TileLang::Index(args2)) => {
             if args1.len() != args2.len() {
@@ -694,14 +712,21 @@ fn index_expressions_equal(egraph: &EGraph, expr1: &TileLang, expr2: &TileLang) 
             args1.iter().zip(args2.iter()).all(|(id1, id2)| {
                 let nodes1 = &egraph[*id1].nodes;
                 let nodes2 = &egraph[*id2].nodes;
-                nodes1.iter().any(|n1| nodes2.iter().any(|n2| index_expressions_equal(egraph, n1, n2)))
+                nodes1.iter().any(|n1| {
+                    nodes2
+                        .iter()
+                        .any(|n2| index_expressions_equal(egraph, n1, n2))
+                })
             })
         }
-        (TileLang::Tile(id1), TileLang::Tile(id2)) |
-        (TileLang::Elem(id1), TileLang::Elem(id2)) => {
+        (TileLang::Tile(id1), TileLang::Tile(id2)) | (TileLang::Elem(id1), TileLang::Elem(id2)) => {
             let nodes1 = &egraph[*id1].nodes;
             let nodes2 = &egraph[*id2].nodes;
-            nodes1.iter().any(|n1| nodes2.iter().any(|n2| index_expressions_equal(egraph, n1, n2)))
+            nodes1.iter().any(|n1| {
+                nodes2
+                    .iter()
+                    .any(|n2| index_expressions_equal(egraph, n1, n2))
+            })
         }
         (TileLang::FullTile, TileLang::FullTile) => true,
         (TileLang::ConstTile(c1), TileLang::ConstTile(c2)) => c1 == c2,
@@ -709,16 +734,13 @@ fn index_expressions_equal(egraph: &EGraph, expr1: &TileLang, expr2: &TileLang) 
     }
 }
 
-
-
 pub fn get_index_node(expr: &RecExpr<TileLang>, node_idx: usize) -> Option<TileLang> {
     if node_idx >= expr.as_ref().len() {
         return None;
     }
-    
+
     Some(expr.as_ref()[node_idx].clone())
 }
-
 
 pub fn is_output_base(expr: &RecExpr<TileLang>, node_idx: usize) -> bool {
     if node_idx >= expr.as_ref().len() {
@@ -755,12 +777,17 @@ pub fn measure_enode_proportions(egraph: &EGraph, print: bool) -> HashMap<String
 
     if print {
         let mut sorted_proportions: Vec<_> = proportions.clone().into_iter().collect();
-        sorted_proportions.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        sorted_proportions.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
 
         println!("{:<15} {:<8} {:<10}", "Type", "Count", "Proportion");
         println!("{}", "-".repeat(35));
         for (node_type, (count, proportion)) in sorted_proportions.iter().take(10) {
-            println!("{}: {} nodes ({:.2}%)", node_type, count, proportion * 100.0);
+            println!(
+                "{}: {} nodes ({:.2}%)",
+                node_type,
+                count,
+                proportion * 100.0
+            );
         }
     }
 
@@ -806,22 +833,18 @@ fn get_enode_type_name(enode: &TileLang) -> String {
 }
 
 // EGraph version of loop carried dependency analysis
-pub fn has_loop_carried_dependency_egraph(
-    egraph: &EGraph, 
-    body_id: Id, 
-    loop_var_id: Id
-) -> bool {
+pub fn has_loop_carried_dependency_egraph(egraph: &EGraph, body_id: Id, loop_var_id: Id) -> bool {
     let loop_var_name = egraph[loop_var_id]
-            .nodes
-            .iter()
-            .find_map(|n| {
-                if let TileLang::Var(sym) = n {
-                    Some(sym.as_str().to_string())
-                } else {
-                    None
-                }
-            })
-            .expect("loop_var should be a Var");
+        .nodes
+        .iter()
+        .find_map(|n| {
+            if let TileLang::Var(sym) = n {
+                Some(sym.as_str().to_string())
+            } else {
+                None
+            }
+        })
+        .expect("loop_var should be a Var");
 
     // 1. collect all write access from the body
     // let mut read_accesses = Vec::new();
@@ -833,9 +856,11 @@ pub fn has_loop_carried_dependency_egraph(
     // 2. check whether the index of write access contains loop_var or not.
     for write_access in &write_accesses {
         if !write_access.index.is_empty() {
-            let all_independent = write_access.index.iter()
+            let all_independent = write_access
+                .index
+                .iter()
                 .all(|index| !index_depends_on(index, egraph, &loop_var_name));
-            
+
             if all_independent {
                 // 3. if ALL indices don't contain loop_var, return true (meaning has dependency -> sloop)
                 return true;

@@ -1,8 +1,8 @@
-use trinity::*;
-use trinity::language::{TileLang, LoopAnalysis, SHAPE_TRACKER};
-use trinity::shape::{ShapeTracker, TensorShape, Dimension};
 use egg::*;
 use std::sync::Once;
+use trinity::language::{LoopAnalysis, TileLang, SHAPE_TRACKER};
+use trinity::shape::{Dimension, ShapeTracker, TensorShape};
+use trinity::*;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
@@ -29,14 +29,23 @@ static INIT_FUSIBLE2: Once = Once::new();
 // Custom rules function that sets up shapes before returning rules
 fn rules_with_shapes_fusible1() -> Vec<egg::Rewrite<TileLang, LoopAnalysis>> {
     INIT_FUSIBLE1.call_once(|| {
-        setup_shape_tracker(vec![("A", vec![128, 256]), ("B", vec![128, 256]), ("C", vec![128, 256])]);
+        setup_shape_tracker(vec![
+            ("A", vec![128, 256]),
+            ("B", vec![128, 256]),
+            ("C", vec![128, 256]),
+        ]);
     });
     rules()
 }
 // Custom rules function that sets up shapes before returning rules
 fn rules_with_shapes_fusible2() -> Vec<egg::Rewrite<TileLang, LoopAnalysis>> {
     INIT_FUSIBLE2.call_once(|| {
-        setup_shape_tracker(vec![("A", vec![128, 256]), ("B", vec![128, 256]), ("C", vec![128, 256]), ("D", vec![128, 512])]);
+        setup_shape_tracker(vec![
+            ("A", vec![128, 256]),
+            ("B", vec![128, 256]),
+            ("C", vec![128, 256]),
+            ("D", vec![128, 512]),
+        ]);
     });
     rules()
 }

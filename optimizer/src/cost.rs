@@ -1,9 +1,9 @@
-use egg::*;
-use std::collections::HashSet;
-use std::collections::HashMap;
-use crate::utils::*;
 use crate::language::*;
-use crate::shape::{TensorShape, Dimension};
+use crate::shape::{Dimension, TensorShape};
+use crate::utils::*;
+use egg::*;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
@@ -15,7 +15,7 @@ pub struct FineGrainedCost<'a> {
 
 impl CostFunction<TileLang> for FineGrainedCost<'_> {
     type Cost = u64;
-    fn cost <C: FnMut(Id) -> Self::Cost>(&mut self, enode: &TileLang, mut costs: C) -> Self::Cost {
+    fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &TileLang, mut costs: C) -> Self::Cost {
         let self_cost = self.cost_model.get_flops(self.egraph, enode);
 
         // Check if this node itself is a dummy variable
@@ -23,17 +23,17 @@ impl CostFunction<TileLang> for FineGrainedCost<'_> {
             TileLang::Var(sym) => sym.as_str().starts_with("dummydata"),
             _ => false,
         };
-        
+
         // If self_cost is already MAX
         if is_dummy_var {
             return 2000000000000;
         }
-        
+
         // Accumulate child costs
         let total = enode.fold(self_cost, |sum, id| {
             let child_cost = costs(id);
             if child_cost == 2000000000000 {
-                return 2000000000000
+                return 2000000000000;
             } else {
                 // sum.saturating_add(child_cost).saturating_sub(1)
                 sum + child_cost
@@ -55,9 +55,7 @@ pub struct FineGrainedCostModel {
 
 impl FineGrainedCostModel {
     pub fn new() -> Self {
-        FineGrainedCostModel {
-            tile_size: 64,
-        }
+        FineGrainedCostModel { tile_size: 64 }
     }
     pub fn with_tile_size(tile_size: u64) -> Self {
         FineGrainedCostModel { tile_size }
@@ -71,8 +69,8 @@ impl FineGrainedCostModel {
                 } else {
                     0
                 }
-            },
-            
+            }
+
             TileLang::Matmul([left, right]) => {
                 // Scale down by 1000 to prevent overflow
                 let cost = self.get_matmul_flops(egraph, *left, *right);
@@ -80,42 +78,39 @@ impl FineGrainedCostModel {
                 //     println!("cost: {:?}", cost);
                 // }
                 cost
-            },
+            }
 
-            TileLang::Add([left, right]) |
-            TileLang::Sub([left, right]) |
-            TileLang::Mul([left, right]) |
-            TileLang::Div([left, right]) => {
+            TileLang::Add([left, right])
+            | TileLang::Sub([left, right])
+            | TileLang::Mul([left, right])
+            | TileLang::Div([left, right]) => {
                 // Scale down by 1000 to prevent overflow
                 let cost = self.get_elementwise_flops(egraph, *left, *right);
                 // if cost != 0 {
                 //     println!("cost: {:?}", cost);
                 // }
                 cost
-                
-            },
+            }
 
-            TileLang::Sqr(input) |
-            TileLang::Sqrt(input) |
-            TileLang::Exp(input) |
-            TileLang::Sigmoid(input) => {
+            TileLang::Sqr(input)
+            | TileLang::Sqrt(input)
+            | TileLang::Exp(input)
+            | TileLang::Sigmoid(input) => {
                 // Scale down by 1000 to prevent overflow
                 let cost = self.get_unary_flops(egraph, *input, 10);
                 // if cost != 0 {
                 //     println!("cost: {:?}", cost);
                 // }
                 cost
-                
-            },
+            }
 
             TileLang::ReduceSum([input, _axis]) => {
                 // Scale down by 1000 to prevent overflow
-                self.get_reduce_flops(egraph, *input) 
-            },
+                self.get_reduce_flops(egraph, *input)
+            }
 
-            _ => 0
-
-        }        
+            _ => 0,
+        }
     }
 
     fn get_matmul_flops(&self, egraph: &EGraph, left_id: Id, right_id: Id) -> u64 {
@@ -127,17 +122,20 @@ impl FineGrainedCostModel {
                     let mut flops = 1u64;
 
                     let batch_size = if left.dims.len() > 2 {
-                        self.calculate_batch_size(&left.dims[..left.dims.len()-2])
+                        self.calculate_batch_size(&left.dims[..left.dims.len() - 2])
                     } else {
                         1
                     };
 
-                    let (m, k) = match (&left.dims[left.dims.len()-2], &left.dims[left.dims.len()-1]) {
+                    let (m, k) = match (
+                        &left.dims[left.dims.len() - 2],
+                        &left.dims[left.dims.len() - 1],
+                    ) {
                         (Dimension::Concrete(m), Dimension::Concrete(k)) => (*m as u64, *k as u64),
                         _ => return 0,
                     };
 
-                    let n = match &right.dims[right.dims.len()-1] {
+                    let n = match &right.dims[right.dims.len() - 1] {
                         Dimension::Concrete(n) => *n as u64,
                         _ => return 0,
                     };
@@ -152,14 +150,15 @@ impl FineGrainedCostModel {
                 println!("Shape is unknown");
                 0
             }
-            _ => {
-                0
-            }
+            _ => 0,
         }
     }
 
     fn get_elementwise_flops(&self, egraph: &EGraph, left_id: Id, right_id: Id) -> u64 {
-        let shape = match (self.get_tensor_shape(egraph, left_id), self.get_tensor_shape(egraph, right_id)) {
+        let shape = match (
+            self.get_tensor_shape(egraph, left_id),
+            self.get_tensor_shape(egraph, right_id),
+        ) {
             (Some(left), Some(right)) => {
                 if self.shapes_match(&left, &right) {
                     Some(left)
@@ -171,7 +170,7 @@ impl FineGrainedCostModel {
             _ => {
                 // println!("Shape is unknown!");
                 None
-            },
+            }
         };
 
         match shape {
@@ -179,7 +178,7 @@ impl FineGrainedCostModel {
             None => {
                 // println!("Shape is none");
                 0
-            },
+            }
         }
     }
 
@@ -189,7 +188,7 @@ impl FineGrainedCostModel {
             None => {
                 // println!("Shape is none");
                 0
-            },
+            }
         }
     }
 
@@ -199,7 +198,7 @@ impl FineGrainedCostModel {
             None => {
                 // println!("Shape is none");
                 0
-            },
+            }
         }
     }
 
@@ -210,60 +209,48 @@ impl FineGrainedCostModel {
         if left.dims.len() != right.dims.len() {
             return false;
         }
-        left.dims.iter().zip(&right.dims).all(|(l, r)| {
-            match (l, r) {
+        left.dims
+            .iter()
+            .zip(&right.dims)
+            .all(|(l, r)| match (l, r) {
                 (Dimension::Concrete(l_size), Dimension::Concrete(r_size)) => l_size == r_size,
                 (Dimension::Wildcard, _) | (_, Dimension::Wildcard) => true,
-            }
-        })
+            })
     }
     fn calculate_total_elements(&self, shape: &TensorShape) -> u64 {
-        shape.dims.iter().fold(1u64, |acc, dim| {
-            match dim {
-                Dimension::Concrete(size) => acc * (*size as u64),
-                Dimension::Wildcard => acc,
-            }
+        shape.dims.iter().fold(1u64, |acc, dim| match dim {
+            Dimension::Concrete(size) => acc * (*size as u64),
+            Dimension::Wildcard => acc,
         })
     }
     fn calculate_batch_size(&self, batch_dims: &[Dimension]) -> u64 {
-        batch_dims.iter().fold(1u64, |acc, dim| {
-            match dim {
-                Dimension::Concrete(size) => acc * (*size as u64),
-                Dimension::Wildcard => acc,
-            }
+        batch_dims.iter().fold(1u64, |acc, dim| match dim {
+            Dimension::Concrete(size) => acc * (*size as u64),
+            Dimension::Wildcard => acc,
         })
     }
 }
 
 pub fn create_fine_grained_extractor<'a>(
-    egraph: &'a EGraph
+    egraph: &'a EGraph,
 ) -> Extractor<'a, FineGrainedCost<'a>, TileLang, LoopAnalysis> {
     let cost_model = FineGrainedCostModel::new();
-    
-    let cost_function = FineGrainedCost {
-        egraph,
-        cost_model,
-    };
-    
+
+    let cost_function = FineGrainedCost { egraph, cost_model };
+
     Extractor::new(egraph, cost_function)
 }
 
 pub fn create_fine_grained_extractor_with_tile_size<'a>(
     egraph: &'a EGraph,
-    tile_size: u64
+    tile_size: u64,
 ) -> Extractor<'a, FineGrainedCost<'a>, TileLang, LoopAnalysis> {
     let cost_model = FineGrainedCostModel::with_tile_size(tile_size);
-    
-    let cost_function = FineGrainedCost {
-        egraph,
-        cost_model,
-    };
-    
+
+    let cost_function = FineGrainedCost { egraph, cost_model };
+
     Extractor::new(egraph, cost_function)
 }
-
-
-
 
 // Wrapper class for egg's cost function
 pub struct TileCost<'a> {
@@ -274,7 +261,7 @@ pub struct TileCost<'a> {
 
 impl CostFunction<TileLang> for TileCost<'_> {
     type Cost = usize;
-    fn cost <C: FnMut(Id) -> Self::Cost>(&mut self, enode: &TileLang, mut costs: C) -> Self::Cost {
+    fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &TileLang, mut costs: C) -> Self::Cost {
         let self_cost = self.cost_model.get_self_cost(self.egraph, enode);
         enode.fold(self_cost, |sum, id| sum + costs(id))
     }
@@ -301,10 +288,16 @@ impl TileCostModel {
         }
     }
 
-    pub fn get_self_cost_should_sequential(&self, egraph: &EGraph, enode: &TileLang, should_sequential: bool) -> usize {
+    pub fn get_self_cost_should_sequential(
+        &self,
+        egraph: &EGraph,
+        enode: &TileLang,
+        should_sequential: bool,
+    ) -> usize {
         match enode {
             TileLang::Loop([_start, _end, _tile, loop_var, body]) => {
-                if has_loop_carried_dependency_egraph(egraph, *body, *loop_var) || should_sequential {
+                if has_loop_carried_dependency_egraph(egraph, *body, *loop_var) || should_sequential
+                {
                     1
                 } else {
                     0
@@ -316,18 +309,14 @@ impl TileCostModel {
 }
 
 pub fn create_extractor<'a>(
-    egraph: &'a EGraph
+    egraph: &'a EGraph,
 ) -> Extractor<'a, TileCost<'a>, TileLang, LoopAnalysis> {
     // Create simple cost model
     let cost_model = TileCostModel::new();
-    
+
     // Create cost function wrapper
-    let cost_function = TileCost {
-        egraph,
-        cost_model,
-    };
-    
+    let cost_function = TileCost { egraph, cost_model };
+
     // Create and return extractor
     Extractor::new(egraph, cost_function)
 }
-
