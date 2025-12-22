@@ -187,7 +187,7 @@ pub fn enumerate_recursive_with_cost_v2(
     max_num_kernel: usize,
     loop_level: usize,
     should_sequential: bool,
-) -> Vec<SemiExpressionResult > {
+) -> Vec<SemiExpressionResult> {
     // Original implementation - filter on first visit
     // if visited.contains(&eclass_id) {
     //     let (best_cost, best_expr) = extractor.find_best(eclass_id);
