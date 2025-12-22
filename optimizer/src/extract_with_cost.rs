@@ -439,7 +439,6 @@ pub fn reconstruct_full_recursive_naive(
             TileLang::Tile(var_id) => {
                 let Some(var_name) = get_var_string(egraph, *var_id) else {
                     panic!("failed to get var string {}", var_id);
-                    continue;
                 };
                 if !loop_variables.contains(&var_name) {
                     continue;
@@ -448,7 +447,6 @@ pub fn reconstruct_full_recursive_naive(
             TileLang::Elem(var_id) => {
                 let Some(var_name) = get_var_string(egraph, *var_id) else {
                     panic!("failed to get var string {}", var_id);
-                    continue;
                 };
                 if !loop_variables.contains(&var_name) {
                     continue;
@@ -699,7 +697,6 @@ pub fn reconstruct_full_recursive_all(
             TileLang::Tile(var_id) => {
                 let Some(var_name) = get_var_string(egraph, *var_id) else {
                     panic!("failed to get var string {}", var_id);
-                    continue;
                 };
                 if !loop_variables.contains(&var_name) {
                     continue;
@@ -708,7 +705,6 @@ pub fn reconstruct_full_recursive_all(
             TileLang::Elem(var_id) => {
                 let Some(var_name) = get_var_string(egraph, *var_id) else {
                     panic!("failed to get var string {}", var_id);
-                    continue;
                 };
                 if !loop_variables.contains(&var_name) {
                     continue;
