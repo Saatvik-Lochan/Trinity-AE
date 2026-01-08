@@ -13,6 +13,7 @@ Run the test:
 
 ```bash
 TRINITY_MODEL_NAME={model_name} cargo test --test test_custom_model optimize_exported_mainfunc -- --nocapture
+TRINITY_MODEL_NAME=Roco cargo test --test test_custom_model optimize_exported_mainfunc -- --nocapture  # example
 ```
 
 Output:
