@@ -707,6 +707,8 @@ def inline_shape_op_calls(main_func: T.MainFunc) -> T.MainFunc:
                 clean = _clean_var_name(idx.name)
                 if clean.isdigit():
                     return True
+            if isinstance(idx, T.ConstTile):
+                return True
         return False
 
     def _has_numeric_tile_name(node: T.ASTNode) -> bool:
@@ -977,6 +979,9 @@ def inline_shape_op_calls(main_func: T.MainFunc) -> T.MainFunc:
     i = 0
     while i < len(calls) - 1:
         call = calls[i]
+        if "concat" in call.primfunc.name:
+            i += 1
+            continue
         if _has_numeric_tile_name(call.primfunc.root_node):
             if call.primfunc.name == "transpose":
                 print(f"[inline_shape_op_calls] skip {call.primfunc.name}: numeric_tile_name")

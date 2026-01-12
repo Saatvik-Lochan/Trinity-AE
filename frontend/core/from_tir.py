@@ -8,6 +8,7 @@ def build_primfunc_nodes(
     tir_mod,
     tmp_ratio: float = 0.3,
     remove_short_loop_threshold: int = 64,
+    debug: bool = False,
 ) -> List[T.PrimFunc]:
     primfunc_nodes: List[T.PrimFunc] = []
 
@@ -16,7 +17,20 @@ def build_primfunc_nodes(
             continue
 
         func_name = global_var.name_hint
-        root_node = _convert_to_ast(func, func_name=func_name)
+        pattern_tracker = {"hit": False, "name_patterns": [], "block_patterns": []}
+        root_node = _convert_to_ast(
+            func,
+            func_name=func_name,
+            debug=debug,
+            pattern_tracker=pattern_tracker,
+        )
+        if debug:
+            name_patterns = pattern_tracker["name_patterns"] or ["none"]
+            block_patterns = pattern_tracker["block_patterns"] or ["none"]
+            print(func_name)
+            print(f"name_pattern: {', '.join(name_patterns)}")
+            print(f"block_pattern: {', '.join(block_patterns)}")
+            print()
         root_node = remove_let_nodes(root_node)
 
         axes = _extract_axes(func)
@@ -38,6 +52,8 @@ def build_primfunc_nodes(
             "divide",
             "add",
             "tir_exp",
+            "concat",
+            "mean",
         )
         if not any(op in func_name_lower for op in exclude_ops):
             root_node, tmp_tensors = decompose_operations(root_node, tensor_info_map, ratio=tmp_ratio)
@@ -234,10 +250,76 @@ def _block_concat_tensors(block: tir.Block) -> Optional[tuple[T.TensorInfo, T.Te
         _buffer_to_tensor_info(writes[0].buffer),
     )
 
+def _try_convert_special_primfunc(
+    prim_func: tir.PrimFunc,
+    func_name: Optional[str] = None,
+    debug: bool = False,
+    pattern_tracker: Optional[dict] = None,
+) -> Optional[T.ASTNode]:
+    func_name = func_name or str(prim_func.attrs.get("global_symbol", ""))
+    func_name_lower = func_name.lower()
+
+    if "concat" in func_name_lower:
+        input_tensors = _get_input_tensor_infos(prim_func)
+        if len(input_tensors) < 2:
+            return None
+        a_tensor, b_tensor = input_tensors[0], input_tensors[1]
+        out_tensor = _get_output_tensor_info(prim_func)
+        concat_loop = _concat_to_loop_ast(a_tensor, b_tensor, out_tensor)
+        if concat_loop is None:
+            return None
+        if pattern_tracker is not None:
+            pattern_tracker["hit"] = True
+            pattern_tracker["name_patterns"].append("concat")
+        return concat_loop
+
+    if "slice_scatter" in func_name_lower:
+        input_tensors = _get_input_tensor_infos(prim_func)
+        if len(input_tensors) < 2:
+            return None
+        out_tensor = _get_output_tensor_info(prim_func)
+        scatter_loop = _slice_scatter_to_loop_ast(input_tensors, out_tensor)
+        if scatter_loop is None:
+            return None
+        if pattern_tracker is not None:
+            pattern_tracker["hit"] = True
+            pattern_tracker["name_patterns"].append("slice_scatter")
+        return scatter_loop
+
+    if "strided_slice" in func_name_lower:
+        io_tensors = _get_input_output_tensors(prim_func)
+        input_tensor, output_tensor = io_tensors
+        slice_loop = _strided_slice_to_loop_ast(input_tensor, output_tensor)
+        if slice_loop is None:
+            return None
+        if pattern_tracker is not None:
+            pattern_tracker["hit"] = True
+            pattern_tracker["name_patterns"].append("strided_slice")
+        return slice_loop
+
+    import re
+    if re.match(r"^mean\d*$", func_name_lower):
+        input_tensors = _get_input_tensor_infos(prim_func)
+        if len(input_tensors) < 1:
+            return None
+        input_tensor = input_tensors[0]
+        output_tensor = _get_output_tensor_info(prim_func)
+        mean_loop = _mean_to_loop_ast(prim_func, input_tensor, output_tensor)
+        if mean_loop is None:
+            return None
+        if pattern_tracker is not None:
+            pattern_tracker["hit"] = True
+            pattern_tracker["name_patterns"].append("mean")
+        return mean_loop
+
+    return None
+
 def _try_convert_special_block_loop(
     stmt: tir.For,
     prim_func: Optional[tir.PrimFunc] = None,
     func_name: Optional[str] = None,
+    debug: bool = False,
+    pattern_tracker: Optional[dict] = None,
 ) -> Optional[T.ASTNode]:
     cur = stmt
     loop_meta: List[tuple[str, int]] = []
@@ -258,7 +340,7 @@ def _try_convert_special_block_loop(
     block_name = getattr(block, "name_hint", None) or getattr(block, "name", None) or ""
     block_name = str(block_name).lower()
     op_name = None
-    special_keys = ("transpose", "broadcast", "reshape", "expand_dims", "concat")
+    special_keys = ("transpose", "broadcast", "reshape", "expand_dims")
     for key in special_keys:
         if key in block_name:
             op_name = key
@@ -291,6 +373,9 @@ def _try_convert_special_block_loop(
         transpose_loop = _transpose_to_loop_ast(input_tensor, output_tensor, permutation)
         if transpose_loop is None:
             raise RuntimeError("transpose conversion failed")
+        if pattern_tracker is not None:
+            pattern_tracker["hit"] = True
+            pattern_tracker["name_patterns"].append("transpose")
         return transpose_loop
     if op_name == "broadcast":
         io_tensors = _resolve_io()
@@ -300,6 +385,9 @@ def _try_convert_special_block_loop(
         broadcast_loop = _broadcast_to_loop_ast(input_tensor, output_tensor)
         if broadcast_loop is None:
             raise RuntimeError("broadcast conversion failed")
+        if pattern_tracker is not None:
+            pattern_tracker["hit"] = True
+            pattern_tracker["name_patterns"].append("broadcast")
         return broadcast_loop
     if op_name in ("reshape", "expand_dims"):
         io_tensors = _resolve_io()
@@ -309,23 +397,10 @@ def _try_convert_special_block_loop(
         reshape_loop = _reshape_to_loop_ast(input_tensor, output_tensor)
         if reshape_loop is None:
             raise RuntimeError(f"{op_name} conversion failed")
+        if pattern_tracker is not None:
+            pattern_tracker["hit"] = True
+            pattern_tracker["name_patterns"].append(op_name)
         return reshape_loop
-    if op_name == "concat":
-        if prim_func is not None:
-            input_tensors = _get_input_tensor_infos(prim_func)
-            if len(input_tensors) < 2:
-                return None
-            a_tensor, b_tensor = input_tensors[0], input_tensors[1]
-            out_tensor = _get_output_tensor_info(prim_func)
-        else:
-            concat_tensors = _block_concat_tensors(block)
-            if concat_tensors is None:
-                return None
-            a_tensor, b_tensor, out_tensor = concat_tensors
-        concat_loop = _concat_to_loop_ast(a_tensor, b_tensor, out_tensor)
-        if concat_loop is None:
-            raise RuntimeError("concat conversion failed")
-        return concat_loop
     if "take" in block_name:
         store = _find_first_store_in_stmt(block.body)
         if store is None or not isinstance(store.value, tir.BufferLoad):
@@ -1048,33 +1123,254 @@ def _concat_to_loop_ast(
         return None
     a_dim = a_dims[axis]
     b_dim = b_dims[axis]
-    if b_dim >= a_dim:
-        raise RuntimeError(
-            f"concat conversion failed: b dim must be smaller than a dim (a={a_dim}, b={b_dim})"
-        )
-    if a_dim % b_dim != 0:
-        print(
-            f"warning: concat b dim does not divide a dim cleanly (a={a_dim}, b={b_dim})"
-        )
+    if a_dim <= 0 or b_dim <= 0:
+        return None
 
-    loop_vars = {dim: f"ax{dim}" for dim in range(len(out_dims)) if dim != axis}
-    out_indices: List[T.ASTNode] = []
+    loop_vars = {dim: f"ax{dim}" for dim in range(len(out_dims))}
+
+    # First loop: write the front (a_tensor) segment.
+    out_indices_a: List[T.ASTNode] = []
+    a_indices: List[T.ASTNode] = []
+    for dim in range(len(out_dims)):
+        var = loop_vars[dim]
+        if dim == axis:
+            out_indices_a.append(T.Tile(var))
+            a_indices.append(T.Tile(var))
+        else:
+            out_indices_a.append(T.Tile(var))
+            a_indices.append(T.Tile(var))
+
+    a_load = T.Load(T.Tensor(a_tensor.name), T.Index(a_indices))
+    store_a = T.Store(T.Tensor(output_tensor.name), a_load, T.Index(out_indices_a))
+    node_a: T.ASTNode = store_a
+    for dim in reversed(range(len(out_dims))):
+        extent = a_dim if dim == axis else out_dims[dim]
+        var = loop_vars[dim]
+        node_a = T.Loop(T.Const(0), T.Const(extent), f"tile_{var}", var, node_a)
+
+    # Second loop: write the tail (b_tensor) segment using ConstTile.
+    out_indices_b: List[T.ASTNode] = []
     b_indices: List[T.ASTNode] = []
     for dim in range(len(out_dims)):
-        if dim == axis:
-            out_indices.append(T.ConstTile(a_dim, b_dim))
-            b_indices.append(T.FullTile())
-            continue
         var = loop_vars[dim]
-        out_indices.append(T.Tile(var))
-        b_indices.append(T.Tile(var))
+        if dim == axis:
+            out_indices_b.append(T.ConstTile(a_dim, b_dim))
+            b_indices.append(T.FullTile())
+        else:
+            out_indices_b.append(T.Tile(var))
+            b_indices.append(T.Tile(var))
 
     b_load = T.Load(T.Tensor(b_tensor.name), T.Index(b_indices))
-    store = T.Store(T.Tensor(output_tensor.name), b_load, T.Index(out_indices))
-    node = store
+    store_b = T.Store(T.Tensor(output_tensor.name), b_load, T.Index(out_indices_b))
+    node_b: T.ASTNode = store_b
     for dim in reversed(range(len(out_dims))):
         if dim == axis:
             continue
+        extent = out_dims[dim]
+        var = loop_vars[dim]
+        node_b = T.Loop(T.Const(0), T.Const(extent), f"tile_{var}", var, node_b)
+
+    return T.Block([node_a, node_b])
+
+def _slice_scatter_to_loop_ast(
+    input_tensors: List[T.TensorInfo],
+    output_tensor: T.TensorInfo,
+) -> Optional[T.ASTNode]:
+    if len(input_tensors) < 2:
+        return None
+
+    out_dims = _shape_to_ints(output_tensor.shape)
+    if out_dims is None:
+        return None
+
+    base_tensor = None
+    update_tensor = None
+    update_dims = None
+    axis = None
+
+    for candidate in input_tensors:
+        cand_dims = _shape_to_ints(candidate.shape)
+        if cand_dims is None:
+            continue
+        if cand_dims == out_dims and base_tensor is None:
+            base_tensor = candidate
+            continue
+        if len(cand_dims) != len(out_dims):
+            continue
+        diff_axis = None
+        for i, (od, cd) in enumerate(zip(out_dims, cand_dims)):
+            if od == cd:
+                continue
+            if cd < od and diff_axis is None:
+                diff_axis = i
+                continue
+            diff_axis = None
+            break
+        if diff_axis is not None:
+            update_tensor = candidate
+            update_dims = cand_dims
+            axis = diff_axis
+
+    if base_tensor is None or update_tensor is None or update_dims is None or axis is None:
+        return None
+
+    start = out_dims[axis] - update_dims[axis]
+    if start < 0:
+        return None
+
+    loop_vars = {dim: f"ax{dim}" for dim in range(len(out_dims))}
+
+    # First loop: copy base tensor into output.
+    out_indices_base: List[T.ASTNode] = []
+    base_indices: List[T.ASTNode] = []
+    for dim in range(len(out_dims)):
+        var = loop_vars[dim]
+        out_indices_base.append(T.Tile(var))
+        base_indices.append(T.Tile(var))
+
+    base_load = T.Load(T.Tensor(base_tensor.name), T.Index(base_indices))
+    store_base = T.Store(T.Tensor(output_tensor.name), base_load, T.Index(out_indices_base))
+    node_base: T.ASTNode = store_base
+    for dim in reversed(range(len(out_dims))):
+        extent = out_dims[dim]
+        var = loop_vars[dim]
+        node_base = T.Loop(T.Const(0), T.Const(extent), f"tile_{var}", var, node_base)
+
+    # Second loop: overwrite the tail slice with update tensor.
+    out_indices_update: List[T.ASTNode] = []
+    update_indices: List[T.ASTNode] = []
+    for dim in range(len(out_dims)):
+        var = loop_vars[dim]
+        if dim == axis:
+            out_indices_update.append(T.ConstTile(start, update_dims[axis]))
+            update_indices.append(T.FullTile())
+        else:
+            out_indices_update.append(T.Tile(var))
+            update_indices.append(T.Tile(var))
+
+    update_load = T.Load(T.Tensor(update_tensor.name), T.Index(update_indices))
+    store_update = T.Store(T.Tensor(output_tensor.name), update_load, T.Index(out_indices_update))
+    node_update: T.ASTNode = store_update
+    for dim in reversed(range(len(out_dims))):
+        if dim == axis:
+            continue
+        extent = out_dims[dim]
+        var = loop_vars[dim]
+        node_update = T.Loop(T.Const(0), T.Const(extent), f"tile_{var}", var, node_update)
+
+    return T.Block([node_base, node_update])
+
+def _mean_to_loop_ast(
+    prim_func: tir.PrimFunc,
+    input_tensor: T.TensorInfo,
+    output_tensor: T.TensorInfo,
+) -> Optional[T.ASTNode]:
+    in_dims = _shape_to_ints(input_tensor.shape)
+    out_dims = _shape_to_ints(output_tensor.shape)
+    if in_dims is None or out_dims is None:
+        return None
+    if len(in_dims) != len(out_dims):
+        return None
+
+    axis = None
+    for i, (idim, odim) in enumerate(zip(in_dims, out_dims)):
+        if idim == odim:
+            continue
+        if odim == 1 and idim > 1 and axis is None:
+            axis = i
+            continue
+        axis = None
+        break
+
+    if axis is None:
+        return None
+
+    reduce_size = in_dims[axis]
+    if reduce_size <= 0:
+        return None
+
+    alloc_tensors = _collect_allocated_tensors(prim_func)
+    acc_tensor = None
+    for tensor in alloc_tensors:
+        if tensor.name == output_tensor.name:
+            continue
+        if _shape_to_ints(tensor.shape) == out_dims:
+            acc_tensor = tensor
+            break
+
+    if acc_tensor is None:
+        return None
+
+    loop_var = "j"
+    input_indices: List[T.ASTNode] = []
+    for dim in range(len(in_dims)):
+        if dim == axis:
+            input_indices.append(T.Tile(loop_var))
+        else:
+            input_indices.append(T.FullTile())
+
+    out_indices = [T.FullTile() for _ in out_dims]
+    rsum_value = T.ReduceSum(T.Load(T.Tensor(input_tensor.name), T.Index(input_indices)), axis)
+    rsum_value = T.Unsqueeze(rsum_value, axis)
+    acc_tensor_node = T.Tensor(acc_tensor.name)
+    out_index = T.Index(out_indices)
+    acc_load = T.Load(acc_tensor_node, out_index)
+    acc_store = T.Store(
+        acc_tensor_node,
+        T.Add(acc_load, rsum_value),
+        out_index,
+    )
+    loop_node = T.Loop(T.Const(0), T.Const(reduce_size), f"tile_{loop_var}", loop_var, acc_store)
+    out_store = T.Store(
+        T.Tensor(output_tensor.name),
+        T.Div(T.Load(acc_tensor_node, out_index), T.Const(float(reduce_size))),
+        out_index,
+    )
+    return T.Block([loop_node, out_store])
+
+def _strided_slice_to_loop_ast(
+    input_tensor: T.TensorInfo,
+    output_tensor: T.TensorInfo,
+) -> Optional[T.ASTNode]:
+    in_dims = _shape_to_ints(input_tensor.shape)
+    out_dims = _shape_to_ints(output_tensor.shape)
+    if in_dims is None or out_dims is None:
+        return None
+    if len(in_dims) != len(out_dims):
+        return None
+
+    axis = None
+    for i, (idim, odim) in enumerate(zip(in_dims, out_dims)):
+        if idim == odim:
+            continue
+        if odim < idim and axis is None:
+            axis = i
+            continue
+        axis = None
+        break
+
+    if axis is None:
+        return None
+
+    start = in_dims[axis] - out_dims[axis]
+    if start < 0:
+        return None
+
+    loop_vars = {dim: f"ax{dim}" for dim in range(len(out_dims))}
+    out_indices: List[T.ASTNode] = []
+    in_indices: List[T.ASTNode] = []
+    for dim in range(len(out_dims)):
+        var = loop_vars[dim]
+        out_indices.append(T.Tile(var))
+        if dim == axis:
+            in_indices.append(T.ConstTile(start, out_dims[axis]))
+        else:
+            in_indices.append(T.Tile(var))
+
+    load = T.Load(T.Tensor(input_tensor.name), T.Index(in_indices))
+    store = T.Store(T.Tensor(output_tensor.name), load, T.Index(out_indices))
+    node = store
+    for dim in reversed(range(len(out_dims))):
         extent = out_dims[dim]
         var = loop_vars[dim]
         node = T.Loop(T.Const(0), T.Const(extent), f"tile_{var}", var, node)
@@ -1416,7 +1712,20 @@ def _reshape_with_ones_to_loop_ast(
     store = T.Store(T.Tensor(output_tensor.name), load, T.Index(out_indices))
     return _build_loop_nest(out_dims, store)
 
-def _convert_to_ast(prim_func: tir.PrimFunc, func_name: Optional[str] = None) -> T.ASTNode:
+def _convert_to_ast(
+    prim_func: tir.PrimFunc,
+    func_name: Optional[str] = None,
+    debug: bool = False,
+    pattern_tracker: Optional[dict] = None,
+) -> T.ASTNode:
+    special_primfunc = _try_convert_special_primfunc(
+        prim_func,
+        func_name=func_name,
+        debug=debug,
+        pattern_tracker=pattern_tracker,
+    )
+    if special_primfunc is not None:
+        return special_primfunc
     tensor_shape_map: dict[str, List[object]] = {}
     for buf in prim_func.buffer_map.values():
         safe_name = buf.name.replace(".", "_")
@@ -1466,6 +1775,25 @@ def _convert_to_ast(prim_func: tir.PrimFunc, func_name: Optional[str] = None) ->
                 return T.Sqrt(args[0])
             elif op_name == "sigmoid":
                 return T.Sigmoid(args[0])
+            elif op_name == "pow":
+                if len(expr.args) != 2:
+                    raise RuntimeError("pow expects exactly two arguments")
+                exponent = expr.args[1]
+                exp_val = None
+                if isinstance(exponent, (tir.IntImm, int)):
+                    exp_val = int(exponent)
+                elif isinstance(exponent, tir.FloatImm):
+                    if float(exponent.value).is_integer():
+                        exp_val = int(exponent.value)
+                if exp_val is not None and exp_val >= 0:
+                    if exp_val == 0:
+                        return T.Const(1)
+                    base = visit_expr(expr.args[0])
+                    result = base
+                    for _ in range(exp_val - 1):
+                        result = T.Mul(result, base)
+                    return result
+                raise NotImplementedError("pow only supports non-negative integer exponents")
             elif op_name == "rsqrt":
                 # User list doesn't have Rsqrt, mapping to 1 / Sqrt(x) or Generic
                 return T.Div(T.Const(1.0), T.Sqrt(args[0]))
@@ -1637,6 +1965,8 @@ def _convert_to_ast(prim_func: tir.PrimFunc, func_name: Optional[str] = None) ->
                 stmt,
                 prim_func=prim_func,
                 func_name=func_name,
+                debug=debug,
+                pattern_tracker=pattern_tracker,
             )
             if special_loop is not None:
                 return special_loop
@@ -1663,21 +1993,33 @@ def _convert_to_ast(prim_func: tir.PrimFunc, func_name: Optional[str] = None) ->
         elif isinstance(stmt, tir.Block):
             arange_node = _try_convert_arange_block(stmt)
             if arange_node is not None:
+                if pattern_tracker is not None:
+                    pattern_tracker["block_patterns"].append("arange")
                 return arange_node
             matmul_node = _try_convert_matmul_block(stmt, visit_expr)
             if matmul_node is not None:
+                if pattern_tracker is not None:
+                    pattern_tracker["block_patterns"].append("matmul")
                 return matmul_node
             reduc_mm_node = _try_convert_reducemaxmin_block(stmt, visit_expr)
             if reduc_mm_node is not None:
+                if pattern_tracker is not None:
+                    pattern_tracker["block_patterns"].append("reducemaxmin")
                 return reduc_mm_node
             reduce_multi_mm_node = _try_convert_multi_reducemaxmin_block(stmt, visit_expr)
             if reduce_multi_mm_node is not None:
+                if pattern_tracker is not None:
+                    pattern_tracker["block_patterns"].append("multi_reducemaxmin")
                 return reduce_multi_mm_node
             reduce_multi_node = _try_convert_multi_reducesum_block(stmt, visit_expr)
             if reduce_multi_node is not None:
+                if pattern_tracker is not None:
+                    pattern_tracker["block_patterns"].append("multi_reducesum")
                 return reduce_multi_node
             reduce_node = _try_convert_reducesum_block(stmt, visit_expr)
             if reduce_node is not None:
+                if pattern_tracker is not None:
+                    pattern_tracker["block_patterns"].append("reducesum")
                 return reduce_node
             # Block body processing
             # Init is often skipped in tiling IR unless explicit.

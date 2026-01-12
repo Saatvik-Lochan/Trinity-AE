@@ -228,6 +228,8 @@ def _is_identity_call(call: T.PrimFuncCall) -> bool:
     if len(call.input_tensors) != 1:
         return False
     input_tensor = call.input_tensors[0]
+    if value.tensor.name != input_tensor.name:
+        return False
     if input_tensor.shape != call.out_var_tensor.shape:
         return False
     # Only treat as identity if indices are plain tiles/fulltile.

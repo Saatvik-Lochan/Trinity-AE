@@ -45,21 +45,20 @@ class RocoAttn(nn.Module):
         k = k2.permute(1, 0, 2)
         v = v2.permute(1, 0, 2)
 
-        cache_k = torch.cat([self.cache_K, k], dim=1)
-        cache_v = torch.cat([self.cache_V, v], dim=1)
+        end = self.cache_K.size(1)
+        start = end - k.size(1)
+        self.cache_K[:, start:end, :] = k
+        self.cache_V[:, start:end, :] = v
 
-        c = torch.matmul(q, cache_k.permute(0, 2, 1))
+        c = torch.matmul(q, self.cache_K.permute(0, 2, 1))
         c_exp = torch.exp(c)
         c_sum = c_exp.sum(dim=2)
         c_div = c_exp / c_sum.unsqueeze(-1)
 
-        c_out1 = c_div.sum(dim=1)
-        c_out2 = (c_div * c_div).sum(dim=1)
-
-        o = torch.matmul(c_div, cache_v)
+        o = torch.matmul(c_div, self.cache_V)
         o1 = o.permute(1, 0, 2)
         o2 = o1.contiguous().view(self.M, self.N)
-        return o2, c_out1, c_out2
+        return o2
 
 
 def build_model_and_inputs():

@@ -6,6 +6,7 @@ import ir.AST as T
 
 def build_main_func(relax_mod, primfunc_nodes: List[T.PrimFunc], apply_alloc: bool = True) -> T.MainFunc:
     primfunc_map = {pf.name: pf for pf in primfunc_nodes}
+    {print(pf.name): pf for pf in primfunc_nodes}
     main_func = relax_mod["main"]
 
     input_tensors: List[T.TensorInfo] = []
@@ -57,10 +58,7 @@ def build_main_func(relax_mod, primfunc_nodes: List[T.PrimFunc], apply_alloc: bo
 
             out_var = binding.var
             out_info = _struct_info_to_tensor_info(out_var.struct_info, out_var.name_hint)
-            if "concatenate" in func_name:
-                input_tensors.append(out_info)
-            else:
-                intermediate_tensors.append(out_info)
+            intermediate_tensors.append(out_info)
 
             input_values: List[T.TensorInfo] = []
             for arg in args:

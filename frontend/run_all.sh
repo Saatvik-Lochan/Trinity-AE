@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PYTHONPATH="$ROOT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
-# python "$ROOT_DIR/model/Decoder.py"
-# echo
+python "$ROOT_DIR/model/Decoder.py"
+echo
 python "$ROOT_DIR/model/Roco.py"
 echo
 python "$ROOT_DIR/model/falcon7b.py"
@@ -27,8 +27,8 @@ echo
 python "$ROOT_DIR/model/prenorm.py"
 echo
 python "$ROOT_DIR/model/rmsnorm.py"
-# echo
-# python "$ROOT_DIR/model/FFN.py"
+echo
+python "$ROOT_DIR/model/FFN.py"
 echo
 python "$ROOT_DIR/model/EncAttn.py"
 echo
