@@ -119,6 +119,7 @@ class IRParser:
             'sqrt': NodeType.SQRT,
             'sigmoid': NodeType.SIGMOID,
             'erf': NodeType.ERF,
+            'cast': NodeType.CAST,
             'max': NodeType.MAX,
             'min': NodeType.MIN,
             'rmax': NodeType.RMAX,

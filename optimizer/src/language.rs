@@ -45,6 +45,7 @@ define_language! {
         "sqrt" = Sqrt(Id), // sqrt(a)
         "sigmoid" = Sigmoid(Id), // sigmoid(a)
         "erf" = Erf(Id), // erf(a)
+        "cast" = Cast([Id; 2]), // cast(dtype, a)
 
         "concat" = Concat([Id; 3]), // concat(a, b, axis)
         "bcast" = Broadcast([Id; 2]), // broadcast(a, axis)
@@ -744,6 +745,17 @@ impl Analysis<TileLang> for LoopAnalysis {
             }
             TileLang::Erf(arg) => {
                 // Erf is element-wise, preserves input shape
+                let tensor_shape = x(arg).tensor_shape.clone();
+
+                Self::Data {
+                    is_deleted: HashSet::new(),
+                    read_set: Vec::new(),
+                    write_set: Vec::new(),
+                    tensor_shape,
+                }
+            }
+            TileLang::Cast([_dtype, arg]) => {
+                // Cast preserves input shape
                 let tensor_shape = x(arg).tensor_shape.clone();
 
                 Self::Data {

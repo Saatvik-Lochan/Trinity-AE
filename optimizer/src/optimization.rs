@@ -100,6 +100,7 @@ pub fn run_until_saturated(
                 TileLang::Sqrt(_) => "sqrt",
                 TileLang::Sigmoid(_) => "sigmoid",
                 TileLang::Erf(_) => "erf",
+                TileLang::Cast(_) => "cast",
                 TileLang::Concat(_) => "concat",
                 TileLang::Broadcast(_) => "bcast",
                 TileLang::Transpose(_) => "transpose",

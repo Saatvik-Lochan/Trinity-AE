@@ -2342,6 +2342,8 @@ def {kernel_name}(
             return self._generate_unary_op(node, "tl.sigmoid")
         elif node.node_type == NodeType.ERF:
             return self._generate_unary_op(node, "tl.libdevice.erf")
+        elif node.node_type == NodeType.CAST:
+            return self._generate_cast(node)
         elif node.node_type == NodeType.RSUM:
             return self._generate_reduce_sum(node)
         elif node.node_type == NodeType.RMAX:
@@ -3429,6 +3431,40 @@ def {kernel_name}(
                 return f"{op}({operand})"
             else:
                 return f"{op}({operand}).to(tl.float16)"
+
+    def _map_cast_dtype(self, dtype: str) -> str:
+        """Map IR dtype string to a Triton dtype expression."""
+        if dtype.startswith("tl."):
+            return dtype
+
+        dtype_map = {
+            "float16": "tl.float16",
+            "float32": "tl.float32",
+            "float64": "tl.float64",
+            "int32": "tl.int32",
+            "int64": "tl.int64",
+            "bool": "tl.int1",
+        }
+        return dtype_map.get(dtype, dtype)
+
+    def _generate_cast(self, node: ASTNode) -> str:
+        """Generate cast operation"""
+        if len(node.children) != 2:
+            raise ValueError("cast requires exactly 2 arguments: dtype and value")
+
+        dtype_node = node.children[0]
+        value_node = node.children[1]
+
+        dtype = self._generate_node(dtype_node)
+        dtype = self._map_cast_dtype(dtype)
+
+        if hasattr(value_node, 'temp_var'):
+            value_expr = value_node.temp_var
+        else:
+            value_expr = self._generate_node(value_node)
+
+        node.tensor_shape = getattr(value_node, "tensor_shape", None)
+        return f"{value_expr}.to({dtype})"
     
     def _generate_matmul(self, node: ASTNode) -> str:
         """Generate matrix multiplication"""
@@ -4047,6 +4083,8 @@ def {kernel_name}(
             return self._generate_unary_op(node, "tl.sigmoid")
         elif node.node_type == NodeType.ERF:
             return self._generate_unary_op(node, "tl.libdevice.erf")
+        elif node.node_type == NodeType.CAST:
+            return self._generate_cast(node)
         else:
             return self._generate_node(node)
     

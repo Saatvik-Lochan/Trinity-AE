@@ -116,6 +116,7 @@ fn format_node_with_ids(_egraph: &EGraph<TileLang, LoopAnalysis>, node: &TileLan
             Sqrt(_) => "sqrt",
             Sigmoid(_) => "sigmoid",
             Erf(_) => "erf",
+            Cast(_) => "cast",
             Concat(_) => "concat",
             Broadcast(_) => "bcast",
             Transpose(_) => "transpose",
@@ -365,6 +366,7 @@ fn parse_node(
             "sqrt" if child_ids.len() >= 1 => Sqrt(child_ids[0]),
             "sigmoid" if child_ids.len() >= 1 => Sigmoid(child_ids[0]),
             "erf" if child_ids.len() >= 1 => Erf(child_ids[0]),
+            "cast" if child_ids.len() >= 2 => Cast([child_ids[0], child_ids[1]]),
             "concat" if child_ids.len() >= 3 => Concat([child_ids[0], child_ids[1], child_ids[2]]),
             "bcast" if child_ids.len() >= 2 => Broadcast([child_ids[0], child_ids[1]]),
             "transpose" if child_ids.len() >= 1 => {
