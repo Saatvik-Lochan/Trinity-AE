@@ -154,7 +154,11 @@ def save_to_text(func_nodes, output_path):
 
 
 
-def export_main_func(main_func: T.MainFunc, output_dir: str, basename: str) -> None:
+def export_main_func(
+    main_func: T.MainFunc,
+    output_dir: str,
+    basename: str,
+) -> None:
     inner_output_dir = f"{output_dir}/trinity/{basename}"
     os.makedirs(inner_output_dir, exist_ok=True)
 

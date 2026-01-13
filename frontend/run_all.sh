@@ -33,3 +33,13 @@ echo
 python "$ROOT_DIR/model/EncAttn.py"
 echo
 python "$ROOT_DIR/model/DecAttn.py"
+echo
+
+# not working yet
+# python "$ROOT_DIR/model/decoder_gqa_rotary_kv.py"
+# echo
+# python "$ROOT_DIR/model/encoder_alibi_prenorm.py"
+# echo
+# python "$ROOT_DIR/model/encdec_crossattn_swiglu.py"
+# echo
+# python "$ROOT_DIR/model/moe_lora_parallel.py"

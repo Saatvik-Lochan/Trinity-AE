@@ -6,7 +6,6 @@ import ir.AST as T
 
 def build_main_func(relax_mod, primfunc_nodes: List[T.PrimFunc], apply_alloc: bool = True) -> T.MainFunc:
     primfunc_map = {pf.name: pf for pf in primfunc_nodes}
-    {print(pf.name): pf for pf in primfunc_nodes}
     main_func = relax_mod["main"]
 
     input_tensors: List[T.TensorInfo] = []

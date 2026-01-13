@@ -304,7 +304,48 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
         visit(root_node)
         return ranges
 
-    def match_group(access: dict[str, set[int]], group_access: dict[str, set[int]]) -> int:
+    def axis_tile_map(root_node: T.ASTNode) -> dict[str, Optional[str]]:
+        tiles: dict[str, Optional[str]] = {}
+
+        def visit(node: T.ASTNode):
+            if isinstance(node, T.Loop):
+                loop_key = _clean_var_name(node.loop_var)
+                tiles[loop_key] = node.tile_name
+                visit(node.body)
+                return
+            if isinstance(node, T.Block):
+                for stmt in node.stmts:
+                    visit(stmt)
+                return
+            if isinstance(node, T.Seq):
+                visit(node.left)
+                visit(node.right)
+                return
+            if isinstance(node, T.If):
+                visit(node.then_branch)
+                if node.else_branch:
+                    visit(node.else_branch)
+                return
+            if isinstance(node, T.Let):
+                visit(node.body)
+                return
+
+        visit(root_node)
+        return tiles
+
+    def tile_compatible(axis_tile: Optional[str], group_tiles: set[Optional[str]]) -> bool:
+        if axis_tile is None:
+            return None in group_tiles
+        return axis_tile in group_tiles
+
+    def match_group(
+        access: dict[str, set[int]],
+        group_access: dict[str, set[int]],
+        axis_tile: Optional[str],
+        group_tiles: set[Optional[str]],
+    ) -> int:
+        if not tile_compatible(axis_tile, group_tiles):
+            return -1
         shared = set(access.keys()) & set(group_access.keys())
         if not shared:
             return -1
@@ -313,8 +354,17 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                 return -1
         return len(shared)
 
-    def match_group_by_range(access: dict[str, set[int]], group_access: dict[str, set[int]], axis_range: tuple[Optional[int], Optional[int]], group_ranges: set[tuple[Optional[int], Optional[int]]]) -> bool:
+    def match_group_by_range(
+        access: dict[str, set[int]],
+        group_access: dict[str, set[int]],
+        axis_range: tuple[Optional[int], Optional[int]],
+        group_ranges: set[tuple[Optional[int], Optional[int]]],
+        axis_tile: Optional[str],
+        group_tiles: set[Optional[str]],
+    ) -> bool:
         if axis_range not in group_ranges:
+            return False
+        if not tile_compatible(axis_tile, group_tiles):
             return False
         shared = set(access.keys()) & set(group_access.keys())
         for tensor in shared:
@@ -359,6 +409,7 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
         patterns = analyze_axis_access_patterns(bound_primfunc)
         access_map = axis_access_map(patterns)
         range_map = axis_range_map(bound_primfunc.root_node)
+        tile_map = axis_tile_map(bound_primfunc.root_node)
 
         rename_map: dict[str, str] = {}
         loop_axes = _collect_loop_vars(bound_primfunc.root_node)
@@ -367,12 +418,13 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
             axis_key = _clean_var_name(axis)
             access = access_map.get(axis_key, {})
             axis_range = range_map.get(axis_key, (None, None))
+            axis_tile = tile_map.get(axis_key)
 
             best_idx = None
             best_score = -1
             if access:
                 for idx, group in enumerate(canonical_groups):
-                    score = match_group(access, group["access"])
+                    score = match_group(access, group["access"], axis_tile, group["tiles"])
                     if score > best_score:
                         best_score = score
                         best_idx = idx
@@ -383,6 +435,8 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                         group["access"],
                         axis_range,
                         group["ranges"],
+                        axis_tile,
+                        group["tiles"],
                     ):
                         best_idx = idx
                         break
@@ -395,6 +449,7 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                         "name": name,
                         "access": {k: set(v) for k, v in access.items()},
                         "ranges": {axis_range},
+                        "tiles": {axis_tile},
                     }
                 )
                 rename_map[axis] = name
@@ -409,6 +464,7 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                     if tensor not in group["access"]:
                         group["access"][tensor] = set(dims)
                 group["ranges"].add(axis_range)
+                group["tiles"].add(axis_tile)
 
         new_root = rename_loop_vars(bound_primfunc.root_node, rename_map)
         new_spatial = [rename_map.get(a, a) for a in bound_primfunc.spatial_axes]
