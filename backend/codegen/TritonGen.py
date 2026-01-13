@@ -2344,6 +2344,8 @@ def {kernel_name}(
             return self._generate_unary_op(node, "tl.libdevice.erf")
         elif node.node_type == NodeType.CAST:
             return self._generate_cast(node)
+        elif node.node_type == NodeType.ABS:
+            return self._generate_unary_op(node, "tl.abs")
         elif node.node_type == NodeType.RSUM:
             return self._generate_reduce_sum(node)
         elif node.node_type == NodeType.RMAX:
@@ -4085,6 +4087,8 @@ def {kernel_name}(
             return self._generate_unary_op(node, "tl.libdevice.erf")
         elif node.node_type == NodeType.CAST:
             return self._generate_cast(node)
+        elif node.node_type == NodeType.ABS:
+            return self._generate_unary_op(node, "tl.abs")
         else:
             return self._generate_node(node)
     

@@ -331,6 +331,8 @@ def validate_primfunc_ast(primfunc: T.PrimFunc) -> List[str]:
                 return _with_op("pow", _eval)
             if node.func_name == "erf" and len(node.args) == 1:
                 return _with_op("erf", lambda: _infer_shape(node.args[0]))
+            if node.func_name == "abs" and len(node.args) == 1:
+                return _with_op("abs", lambda: _infer_shape(node.args[0]))
             if node.func_name == "transpose" and node.args:
                 def _eval():
                     shape = _infer_shape(node.args[0])

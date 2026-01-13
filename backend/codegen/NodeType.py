@@ -24,6 +24,7 @@ class NodeType(Enum):
     SIGMOID = "sigmoid"
     ERF = "erf"
     CAST = "cast"
+    ABS = "abs"
     MAX = "max"
     MIN = "min"
     RMAX = "rmax"

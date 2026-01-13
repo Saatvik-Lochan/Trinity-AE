@@ -120,6 +120,7 @@ class IRParser:
             'sigmoid': NodeType.SIGMOID,
             'erf': NodeType.ERF,
             'cast': NodeType.CAST,
+            'abs': NodeType.ABS,
             'max': NodeType.MAX,
             'min': NodeType.MIN,
             'rmax': NodeType.RMAX,

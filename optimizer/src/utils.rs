@@ -820,6 +820,7 @@ fn get_enode_type_name(enode: &TileLang) -> String {
         TileLang::Min(_) => "Min".to_string(),
         TileLang::Exp(_) => "Exp".to_string(),
         TileLang::Erf(_) => "Erf".to_string(),
+        TileLang::Abs(_) => "Abs".to_string(),
         TileLang::Cast(_) => "Cast".to_string(),
         TileLang::Matmul(_) => "Matmul".to_string(),
         TileLang::ReduceSum(_) => "ReduceSum".to_string(),

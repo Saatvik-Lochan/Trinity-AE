@@ -301,6 +301,19 @@ def _try_convert_special_primfunc(
             pattern_tracker["name_patterns"].append("strided_slice")
         return slice_loop
 
+    if "tir_abs" in func_name_lower or func_name_lower == "abs":
+        input_tensors = _get_input_tensor_infos(prim_func)
+        if len(input_tensors) < 1:
+            return None
+        output_tensor = _get_output_tensor_info(prim_func)
+        abs_loop = _unary_to_loop_ast(input_tensors[0], output_tensor, "abs")
+        if abs_loop is None:
+            return None
+        if pattern_tracker is not None:
+            pattern_tracker["hit"] = True
+            pattern_tracker["name_patterns"].append("tir_abs")
+        return abs_loop
+
     import re
     if re.match(r"^mean\d*$", func_name_lower):
         input_tensors = _get_input_tensor_infos(prim_func)
@@ -1027,6 +1040,25 @@ def _build_loop_nest(
         var = f"{var_prefix}{idx}"
         node = T.Loop(T.Const(0), T.Const(extents[idx]), f"tile_{var}", var, node)
     return node
+
+def _unary_to_loop_ast(
+    input_tensor: T.TensorInfo,
+    output_tensor: T.TensorInfo,
+    op_name: str,
+) -> Optional[T.ASTNode]:
+    in_dims = _shape_to_ints(input_tensor.shape)
+    out_dims = _shape_to_ints(output_tensor.shape)
+    if in_dims is None or out_dims is None:
+        return None
+    if in_dims != out_dims:
+        return None
+
+    loop_vars = [f"ax{i}" for i in range(len(out_dims))]
+    indices = [T.Tile(v) for v in loop_vars]
+    load = T.Load(T.Tensor(input_tensor.name), T.Index(indices))
+    value = T.GenericCall(op_name, [load])
+    store = T.Store(T.Tensor(output_tensor.name), value, T.Index(indices))
+    return _build_loop_nest(out_dims, store)
 
 def _transpose_to_loop_ast(
     input_tensor: T.TensorInfo,
@@ -1775,6 +1807,8 @@ def _convert_to_ast(
             # Mapping known intrinsics to User AST
             if op_name == "exp":
                 return T.Exp(args[0])
+            elif op_name == "abs":
+                return T.GenericCall("abs", [args[0]])
             elif op_name == "sqrt":
                 return T.Sqrt(args[0])
             elif op_name == "sigmoid":
