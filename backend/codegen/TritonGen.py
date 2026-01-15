@@ -43,6 +43,7 @@ class TritonCodeGen:
         self.sloop_depth = 0  # Track nested sloop depth
         self.stored_accumulators = set()  # Track accumulators that have been stored in loops
         self.current_store_tensor = None  # Track current tensor being stored to detect context
+        self.debug = bool(os.environ.get("TRITON_GEN_DEBUG"))
         
     def _next_power_of_2(self, n):
         """Round up to the next power of 2"""
@@ -56,6 +57,10 @@ class TritonCodeGen:
         while power < n:
             power <<= 1
         return power
+
+    def _debug_log(self, message: str) -> None:
+        if self.debug:
+            print(f"[TritonGen] {message}")
         
     def _get_padded_block_size(self, size_expr):
         """Get padded block size and whether padding was applied"""
@@ -2989,11 +2994,43 @@ def {kernel_name}(
                 
                 # Get dimension
                 dim = self._generate_node(val_node.children[1])
+                dim_value = None
+                try:
+                    dim_value = int(dim)
+                except (TypeError, ValueError):
+                    dim_value = None
                 
                 value_expr = f"tl.expand_dims({tensor_expr}, {dim})"
+                self._debug_log(
+                    f"inline unsqueeze child={child.node_type} dim={dim} dim_value={dim_value} "
+                    f"child.block_shape={getattr(child, 'block_shape', None)} "
+                    f"child.tensor_shape={getattr(child, 'tensor_shape', None)}"
+                )
+                if hasattr(child, "tensor_shape") and child.tensor_shape and dim_value is not None:
+                    child_shape = list(child.tensor_shape)
+                    if dim_value < 0:
+                        dim_value += len(child_shape) + 1
+                    if 0 <= dim_value <= len(child_shape):
+                        child_shape.insert(dim_value, 1)
+                        val_node.tensor_shape = tuple(child_shape)
+                if hasattr(child, "block_shape") and child.block_shape and dim_value is not None:
+                    block_shape = list(child.block_shape)
+                    dim_index = dim_value
+                    if dim_index < 0:
+                        dim_index += len(block_shape) + 1
+                    if 0 <= dim_index <= len(block_shape):
+                        block_shape.insert(dim_index, 1)
+                        val_node.block_shape = tuple(block_shape)
+                if dim_value is not None:
+                    val_node.unsqueeze_dim = dim_value
+                self._debug_log(
+                    f"inline unsqueeze result block_shape={getattr(val_node, 'block_shape', None)} "
+                    f"tensor_shape={getattr(val_node, 'tensor_shape', None)}"
+                )
             
             elif val_node.node_type == NodeType.SQUEEZE:
                 child = val_node.children[0]
+                squeeze_handled = False
                 # Generate child if needed
                 if child.node_type in [NodeType.LOAD, NodeType.PERMUTE3, NodeType.TRANSPOSE, NodeType.UNSQUEEZE] and not hasattr(child, 'temp_var'):
                     code += self._generate_node(child)
@@ -3014,6 +3051,12 @@ def {kernel_name}(
                     squeeze_dim = int(self._generate_node(val_node.children[1]))
                 except (TypeError, ValueError):
                     squeeze_dim = None
+
+                self._debug_log(
+                    f"inline squeeze child={child.node_type} dim={squeeze_dim} "
+                    f"child.block_shape={getattr(child, 'block_shape', None)} "
+                    f"child.tensor_shape={getattr(child, 'tensor_shape', None)}"
+                )
 
                 if hasattr(child, "block_shape") and child.block_shape and squeeze_dim is not None:
                     block_shape = list(child.block_shape)
@@ -3036,10 +3079,15 @@ def {kernel_name}(
                                 val_node.tensor_shape = tuple(tensor_shape)
                         # Skip tensor_shape-based reshape handling
                         source_tensor_name = None
+                        squeeze_handled = True
+                        self._debug_log(
+                            f"inline squeeze used block_shape -> {val_node.block_shape} "
+                            f"tensor_shape={getattr(val_node, 'tensor_shape', None)}"
+                        )
 
                 # For squeeze operations, we need to use the source tensor's dimensions
                 # after removing the squeezed dimension
-                if source_tensor_name and source_tensor_name in self.tensor_shapes:
+                if not squeeze_handled and source_tensor_name and source_tensor_name in self.tensor_shapes:
                     # Check if child was a permute operation to map dimensions correctly
                     if child.node_type in [NodeType.PERMUTE3, NodeType.TRANSPOSE] and hasattr(child, 'permute_dims'):
                         # Get the permuted dimension order
@@ -3082,7 +3130,7 @@ def {kernel_name}(
                     padded_parts, _ = self._get_padded_shape(shape_values) if shape_values else (shape_parts, shape_values)
                     padded_shape_str = f"({', '.join(padded_parts)})"
                     value_expr = f"tl.reshape({tensor_expr}, {padded_shape_str})"
-                elif hasattr(child, "tensor_shape") and child.tensor_shape and squeeze_dim is not None:
+                elif not squeeze_handled and hasattr(child, "tensor_shape") and child.tensor_shape and squeeze_dim is not None:
                     child_shape = child.tensor_shape
                     if squeeze_dim < 0:
                         squeeze_dim += len(child_shape)
@@ -3103,7 +3151,7 @@ def {kernel_name}(
                         value_expr = f"tl.reshape({tensor_expr}, {padded_shape_str})"
                         if shape_values:
                             val_node.tensor_shape = tuple(shape_values)
-                else:
+                elif not squeeze_handled:
                     # Fallback: use source tensor shape after squeeze
                     # For squeeze operation, we need to use the dimensions of the source tensor O
                     # not the output tensor O2
@@ -3502,6 +3550,7 @@ def {kernel_name}(
         child_code, operand = self._get_operand_expr(child, "unary op")
 
         node.tensor_shape = getattr(child, "tensor_shape", None)
+        node.block_shape = getattr(child, "block_shape", None)
         
         # Check if we're storing to an exp tensor (fp32)
         exp_tensors = getattr(self, 'exp_tensors', set())
@@ -4299,19 +4348,8 @@ def {kernel_name}(
         child = node.children[0]
         child_code = ""
         
-        # If child doesn't have temp_var yet, generate it
-        if not hasattr(child, 'temp_var'):
-            if child.node_type in [NodeType.LOAD, NodeType.UNSQUEEZE, NodeType.SQUEEZE, NodeType.PERMUTE3, NodeType.TRANSPOSE]:
-                child_code = self._generate_node(child)
-                if child_code and not child_code.endswith('\n'):
-                    child_code += '\n'
-        
-        # Get the tensor expression
-        if hasattr(child, 'temp_var'):
-            tensor_expr = child.temp_var
-        else:
-            # This should not happen anymore with proper generation
-            raise ValueError(f"Expected temp_var for {child.node_type} node in permute3")
+        # Ensure the child has a temp_var for permute input
+        child_code, tensor_expr = self._ensure_temp_var(child, "permute3")
         
         # Get the permutation dimensions based on number of children
         # if len(node.children) == 4:
@@ -4465,6 +4503,12 @@ def {kernel_name}(
             dim_value = int(dim)
         except (TypeError, ValueError):
             dim_value = None
+
+        self._debug_log(
+            f"squeeze child={child.node_type} dim={dim} dim_value={dim_value} "
+            f"child.block_shape={getattr(child, 'block_shape', None)} "
+            f"child.tensor_shape={getattr(child, 'tensor_shape', None)}"
+        )
         
         # Generate a temporary variable for the result
         temp_var = f"temp_{self.temp_counter}"
@@ -4494,9 +4538,12 @@ def {kernel_name}(
                         dim_idx += len(tensor_shape)
                     if 0 <= dim_idx < len(tensor_shape):
                         del tensor_shape[dim_idx]
-                        node.tensor_shape = tuple(tensor_shape)
+                node.tensor_shape = tuple(tensor_shape)
                 node.temp_var = temp_var
                 node.squeeze_dim = int(dim)
+                self._debug_log(
+                    f"squeeze used block_shape -> {node.block_shape} tensor_shape={getattr(node, 'tensor_shape', None)}"
+                )
                 return code
 
         if hasattr(child, "tensor_shape") and child.tensor_shape and dim_value is not None:
@@ -4512,6 +4559,9 @@ def {kernel_name}(
                 code += result
                 node.temp_var = temp_var
                 node.squeeze_dim = int(dim)
+                self._debug_log(
+                    f"squeeze used tensor_shape -> {getattr(node, 'tensor_shape', None)} block_shape={getattr(node, 'block_shape', None)}"
+                )
                 return code
         if source_tensor_name and source_tensor_name in self.tensor_shapes:
             # Use tensor dimension information to construct new shape for reshape
@@ -4561,9 +4611,15 @@ def {kernel_name}(
             if shape_values:
                 node.tensor_shape = tuple(shape_values)
                 node.block_shape = tuple(padded_values)
+            self._debug_log(
+                f"squeeze used tensor_shapes[{source_tensor_name}] -> "
+                f"tensor_shape={getattr(node, 'tensor_shape', None)} "
+                f"block_shape={getattr(node, 'block_shape', None)}"
+            )
         else:
             # Fallback: simple assignment with comment
             code += f"{indent}{temp_var} = {tensor_expr}  # squeeze dim {dim} (fallback)\n"
+            self._debug_log("squeeze fallback: no tensor_shape/block_shape available")
         
         # Store temp var in node for parent operations
         node.temp_var = temp_var
@@ -4645,11 +4701,10 @@ def {kernel_name}(
         
         # If child doesn't have temp_var yet, generate it
         if not hasattr(child, 'temp_var'):
-            if child.node_type in [NodeType.LOAD, NodeType.UNSQUEEZE, NodeType.SQUEEZE, NodeType.PERMUTE3, NodeType.TRANSPOSE]:
-                child_code = self._generate_node(child)
-                if child_code and not child_code.endswith('\n'):
-                    child_code += '\n'
-        
+            child_code = self._generate_node(child)
+            if child_code and not child_code.endswith('\n'):
+                child_code += '\n'
+    
         # Get the tensor expression
         if hasattr(child, 'temp_var'):
             tensor_expr = child.temp_var
@@ -4661,6 +4716,12 @@ def {kernel_name}(
             dim_value = int(dim)
         except (TypeError, ValueError):
             dim_value = None
+
+        self._debug_log(
+            f"unsqueeze child={child.node_type} dim={dim} dim_value={dim_value} "
+            f"child.block_shape={getattr(child, 'block_shape', None)} "
+            f"child.tensor_shape={getattr(child, 'tensor_shape', None)}"
+        )
         
         # Generate a temporary variable for the result
         temp_var = f"temp_{self.temp_counter}"
@@ -4705,5 +4766,9 @@ def {kernel_name}(
             if 0 <= dim_index <= len(block_shape):
                 block_shape.insert(dim_index, 1)
                 node.block_shape = tuple(block_shape)
+        self._debug_log(
+            f"unsqueeze result block_shape={getattr(node, 'block_shape', None)} "
+            f"tensor_shape={getattr(node, 'tensor_shape', None)}"
+        )
 
         return code
