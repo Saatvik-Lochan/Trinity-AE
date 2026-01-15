@@ -76,6 +76,15 @@ class TritonCodeGen:
         except:
             # If evaluation fails, return original
             return size_expr, False
+
+    def _get_padded_shape(self, shape_values):
+        padded_parts = []
+        padded_values = []
+        for dim in shape_values:
+            padded_dim, _ = self._get_padded_block_size(dim)
+            padded_parts.append(str(padded_dim))
+            padded_values.append(padded_dim)
+        return padded_parts, padded_values
         
     def _generate_mask_for_index(self, index_node: ASTNode, tensor_name: str) -> tuple:
         """Generate mask code for tensor access if needed
@@ -2701,33 +2710,36 @@ def {kernel_name}(
         # (load tensor index)
         tensor_node = node.children[0]
         index_node = node.children[1]
-        
+
         tensor_name = tensor_node.children[0].value
+        node.tensor_shape = self.tensor_shapes.get(tensor_name)
         node.tensor_shape = self.tensor_shapes.get(tensor_name)
         
         # Skip checking for temporary variables - we don't create them anymore
-        
-        # Check if this is a kernel accumulator - if so, just return the accumulator variable
-        # UNLESS it's also a cross-sloop memory tensor (needs actual load)
-        if tensor_name in self.kernel_accumulators and tensor_name not in self.cross_sloop_memory_tensors:
-            node.temp_var = tensor_name
-            return ""
-        
-        # Check if this is a local intermediate tensor (not cross-kernel and not cross-sloop memory)
-        if (tensor_name in self.intermediate_tensors and 
-            tensor_name not in self.cross_kernel_tensors and
-            not (hasattr(self, 'cross_sloop_memory_tensors') and tensor_name in self.cross_sloop_memory_tensors)):
-            # For local intermediate tensors, directly reference without reshape
-            # tl.dot can handle 3D tensors with batch dimension
-            node.temp_var = tensor_name
-            return ""
         
         # For input/output tensors and cross-kernel tensors, use normal load operation
         # Handle case where index_node is directly FULLTILE (not wrapped in INDEX)
         if index_node.node_type == NodeType.FULLTILE:
             # Wrap the FULLTILE in an INDEX node for proper handling
             index_node = ASTNode(NodeType.INDEX, [index_node])
-        
+
+        node.block_shape = self._infer_block_shape_from_index(index_node, tensor_name)
+
+        # Check if this is a kernel accumulator - if so, just return the accumulator variable
+        # UNLESS it's also a cross-sloop memory tensor (needs actual load)
+        if tensor_name in self.kernel_accumulators and tensor_name not in self.cross_sloop_memory_tensors:
+            node.temp_var = tensor_name
+            return ""
+
+        # Check if this is a local intermediate tensor (not cross-kernel and not cross-sloop memory)
+        if (tensor_name in self.intermediate_tensors and
+            tensor_name not in self.cross_kernel_tensors and
+            not (hasattr(self, 'cross_sloop_memory_tensors') and tensor_name in self.cross_sloop_memory_tensors)):
+            # For local intermediate tensors, directly reference without reshape
+            # tl.dot can handle 3D tensors with batch dimension
+            node.temp_var = tensor_name
+            return ""
+
         offset_expr = self._generate_index(index_node, tensor_name)
         
         # Create a cache key from tensor name and offset expression
@@ -2987,7 +2999,7 @@ def {kernel_name}(
                     code += self._generate_node(child)
                     if not code.endswith('\n'):
                         code += '\n'
-                
+
                 # Get tensor expression
                 if hasattr(child, 'temp_var'):
                     tensor_expr = child.temp_var
@@ -3002,7 +3014,29 @@ def {kernel_name}(
                     squeeze_dim = int(self._generate_node(val_node.children[1]))
                 except (TypeError, ValueError):
                     squeeze_dim = None
-                
+
+                if hasattr(child, "block_shape") and child.block_shape and squeeze_dim is not None:
+                    block_shape = list(child.block_shape)
+                    dim_index = squeeze_dim
+                    if dim_index < 0:
+                        dim_index += len(block_shape)
+                    if 0 <= dim_index < len(block_shape):
+                        del block_shape[dim_index]
+                        shape_parts = [str(dim) for dim in block_shape]
+                        shape_str = f"({', '.join(shape_parts)})"
+                        value_expr = f"tl.reshape({tensor_expr}, {shape_str})"
+                        val_node.block_shape = tuple(block_shape)
+                        if hasattr(child, "tensor_shape") and child.tensor_shape:
+                            tensor_shape = list(child.tensor_shape)
+                            dim_idx = squeeze_dim
+                            if dim_idx < 0:
+                                dim_idx += len(tensor_shape)
+                            if 0 <= dim_idx < len(tensor_shape):
+                                del tensor_shape[dim_idx]
+                                val_node.tensor_shape = tuple(tensor_shape)
+                        # Skip tensor_shape-based reshape handling
+                        source_tensor_name = None
+
                 # For squeeze operations, we need to use the source tensor's dimensions
                 # after removing the squeezed dimension
                 if source_tensor_name and source_tensor_name in self.tensor_shapes:
@@ -3045,7 +3079,9 @@ def {kernel_name}(
                                     shape_parts.append(str(dim_value))
                     
                     shape_str = f"({', '.join(shape_parts)})"
-                    value_expr = f"tl.reshape({tensor_expr}, {shape_str})"
+                    padded_parts, _ = self._get_padded_shape(shape_values) if shape_values else (shape_parts, shape_values)
+                    padded_shape_str = f"({', '.join(padded_parts)})"
+                    value_expr = f"tl.reshape({tensor_expr}, {padded_shape_str})"
                 elif hasattr(child, "tensor_shape") and child.tensor_shape and squeeze_dim is not None:
                     child_shape = child.tensor_shape
                     if squeeze_dim < 0:
@@ -3062,7 +3098,9 @@ def {kernel_name}(
                                 shape_parts.append(str(dim_value))
                             shape_values.append(dim_value)
                         shape_str = f"({', '.join(shape_parts)})"
-                        value_expr = f"tl.reshape({tensor_expr}, {shape_str})"
+                        padded_parts, _ = self._get_padded_shape(shape_values) if shape_values else (shape_parts, shape_values)
+                        padded_shape_str = f"({', '.join(padded_parts)})"
+                        value_expr = f"tl.reshape({tensor_expr}, {padded_shape_str})"
                         if shape_values:
                             val_node.tensor_shape = tuple(shape_values)
                 else:
@@ -3083,7 +3121,9 @@ def {kernel_name}(
                                     shape_parts.append(str(dim_value))
                         
                         shape_str = f"({', '.join(shape_parts)})"
-                        value_expr = f"tl.reshape({tensor_expr}, {shape_str})"
+                        padded_parts, _ = self._get_padded_shape(shape_values) if shape_values else (shape_parts, shape_values)
+                        padded_shape_str = f"({', '.join(padded_parts)})"
+                        value_expr = f"tl.reshape({tensor_expr}, {padded_shape_str})"
                     elif tensor_name in self.tensor_shapes:
                         # If we still don't have source tensor info, use output tensor dimensions
                         shape_dims = []
@@ -3096,7 +3136,9 @@ def {kernel_name}(
                                 # Literal number
                                 shape_dims.append(str(dim_value))
                         shape_str = f"({', '.join(shape_dims)})"
-                        value_expr = f"tl.reshape({tensor_expr}, {shape_str})"
+                        padded_parts, _ = self._get_padded_shape(shape_dims) if shape_dims else (shape_dims, shape_dims)
+                        padded_shape_str = f"({', '.join(padded_parts)})"
+                        value_expr = f"tl.reshape({tensor_expr}, {padded_shape_str})"
                     else:
                         # Last resort: tensor already reshaped in squeeze operation
                         value_expr = f"{tensor_expr}"
@@ -3829,6 +3871,38 @@ def {kernel_name}(
                 shape.append(1)
                 
         return tuple(shape) if shape else None
+
+    def _infer_block_shape_from_index(self, index_node: ASTNode, tensor_name: str) -> tuple:
+        """Infer padded block shape from index pattern for block-tensor ops."""
+        if index_node.node_type != NodeType.INDEX:
+            return None
+
+        shape = []
+        for i, child in enumerate(index_node.children):
+            if child.node_type == NodeType.FULLTILE:
+                dim_value = None
+                if tensor_name in self.tensor_shapes and i < len(self.tensor_shapes[tensor_name]):
+                    dim_value = self.tensor_shapes[tensor_name][i]
+                else:
+                    dim_value = f"{tensor_name}_dim{i}"
+                padded_dim, _ = self._get_padded_block_size(dim_value)
+                shape.append(padded_dim)
+            elif child.node_type == NodeType.TILE:
+                if child.children:
+                    loop_var = child.children[0].value
+                    block_param = f"BLOCK_{loop_var.upper()}"
+                    padded_dim, _ = self._get_padded_block_size(block_param)
+                    shape.append(padded_dim)
+                else:
+                    shape.append(1)
+            elif child.node_type == NodeType.ELEM:
+                shape.append(1)
+            elif child.node_type == NodeType.CONST_TILE:
+                if len(child.children) >= 2:
+                    size = self._generate_node(child.children[1])
+                    padded_dim, _ = self._get_padded_block_size(size)
+                    shape.append(padded_dim)
+        return tuple(shape) if shape else None
     
     def _collect_all_loops(self, node: ASTNode):
         """Collect all loop information for BLOCK parameters"""
@@ -4289,7 +4363,10 @@ def {kernel_name}(
         child_shape = getattr(child, "tensor_shape", None)
         if child_shape and len(child_shape) == len(perm_dims):
             node.tensor_shape = tuple(child_shape[i] for i in perm_dims)
-        
+        child_block = getattr(child, "block_shape", None)
+        if child_block and len(child_block) == len(perm_dims):
+            node.block_shape = tuple(child_block[i] for i in perm_dims)
+
         return code
 
     def _generate_transpose(self, node: ASTNode) -> str:
@@ -4343,6 +4420,9 @@ def {kernel_name}(
         child_shape = getattr(child, "tensor_shape", None)
         if child_shape and len(child_shape) == len(perm_dims):
             node.tensor_shape = tuple(child_shape[i] for i in perm_dims)
+        child_block = getattr(child, "block_shape", None)
+        if child_block and len(child_block) == len(perm_dims):
+            node.block_shape = tuple(child_block[i] for i in perm_dims)
 
         return code
     
@@ -4389,13 +4469,36 @@ def {kernel_name}(
         # Generate a temporary variable for the result
         temp_var = f"temp_{self.temp_counter}"
         self.temp_counter += 1
-        
+
         # Try to infer the source tensor name for dimension information
         source_tensor_name = self._infer_tensor_name(child)
-        
+
         indent = '    ' * self.indent_level
         code = child_code
-        
+
+        if hasattr(child, "block_shape") and child.block_shape and dim_value is not None:
+            block_shape = list(child.block_shape)
+            dim_index = dim_value
+            if dim_index < 0:
+                dim_index += len(block_shape)
+            if 0 <= dim_index < len(block_shape):
+                del block_shape[dim_index]
+                shape_parts = [str(dim) for dim in block_shape]
+                shape_tuple = f"({', '.join(shape_parts)})"
+                code += f"{indent}{temp_var} = tl.reshape({tensor_expr}, {shape_tuple})\n"
+                node.block_shape = tuple(block_shape)
+                if hasattr(child, "tensor_shape") and child.tensor_shape:
+                    tensor_shape = list(child.tensor_shape)
+                    dim_idx = dim_value
+                    if dim_idx < 0:
+                        dim_idx += len(tensor_shape)
+                    if 0 <= dim_idx < len(tensor_shape):
+                        del tensor_shape[dim_idx]
+                        node.tensor_shape = tuple(tensor_shape)
+                node.temp_var = temp_var
+                node.squeeze_dim = int(dim)
+                return code
+
         if hasattr(child, "tensor_shape") and child.tensor_shape and dim_value is not None:
             result = self._apply_squeeze_from_shape(
                 child.tensor_shape,
@@ -4452,9 +4555,12 @@ def {kernel_name}(
             
             # Pass shape directly as tuple to tl.reshape
             shape_tuple = f"({', '.join(shape_parts)})"
-            code += f"{indent}{temp_var} = tl.reshape({tensor_expr}, {shape_tuple})\n"
+            padded_parts, padded_values = self._get_padded_shape(shape_values) if shape_values else (shape_parts, shape_values)
+            padded_shape_tuple = f"({', '.join(padded_parts)})"
+            code += f"{indent}{temp_var} = tl.reshape({tensor_expr}, {padded_shape_tuple})\n"
             if shape_values:
                 node.tensor_shape = tuple(shape_values)
+                node.block_shape = tuple(padded_values)
         else:
             # Fallback: simple assignment with comment
             code += f"{indent}{temp_var} = {tensor_expr}  # squeeze dim {dim} (fallback)\n"
@@ -4491,9 +4597,12 @@ def {kernel_name}(
                 shape_parts.append(str(dim_entry))
             shape_values.append(dim_entry)
         shape_tuple = f"({', '.join(shape_parts)})"
-        code = f"{indent}{temp_var} = tl.reshape({tensor_expr}, {shape_tuple})\n"
+        padded_parts, padded_values = self._get_padded_shape(shape_values) if shape_values else (shape_parts, shape_values)
+        padded_shape_tuple = f"({', '.join(padded_parts)})"
+        code = f"{indent}{temp_var} = tl.reshape({tensor_expr}, {padded_shape_tuple})\n"
         if shape_values:
             node.tensor_shape = tuple(shape_values)
+            node.block_shape = tuple(padded_values)
         return code
     
     def _infer_tensor_name(self, node: ASTNode) -> str:
@@ -4547,6 +4656,11 @@ def {kernel_name}(
         
         # Get the dimension to unsqueeze
         dim = self._generate_node(node.children[1])
+        dim_value = None
+        try:
+            dim_value = int(dim)
+        except (TypeError, ValueError):
+            dim_value = None
         
         # Generate a temporary variable for the result
         temp_var = f"temp_{self.temp_counter}"
@@ -4556,7 +4670,7 @@ def {kernel_name}(
         indent = '    ' * self.indent_level
         code = child_code
         code += f"{indent}{temp_var} = tl.expand_dims({tensor_expr}, {dim})\n"
-        
+
         # Store temp var in node for parent operations
         node.temp_var = temp_var
         child_shape = getattr(child, "tensor_shape", None)
@@ -4574,6 +4688,22 @@ def {kernel_name}(
                 node.tensor_shape = tuple(new_shape)
         
         # Store unsqueeze dimension for parent operations
-        node.unsqueeze_dim = int(dim)
-        
+        if dim_value is not None:
+            node.unsqueeze_dim = dim_value
+        if hasattr(child, "tensor_shape") and child.tensor_shape and dim_value is not None:
+            child_shape = list(child.tensor_shape)
+            if dim_value < 0:
+                dim_value += len(child_shape) + 1
+            if 0 <= dim_value <= len(child_shape):
+                child_shape.insert(dim_value, 1)
+                node.tensor_shape = tuple(child_shape)
+        if hasattr(child, "block_shape") and child.block_shape and dim_value is not None:
+            block_shape = list(child.block_shape)
+            dim_index = dim_value
+            if dim_index < 0:
+                dim_index += len(block_shape) + 1
+            if 0 <= dim_index <= len(block_shape):
+                block_shape.insert(dim_index, 1)
+                node.block_shape = tuple(block_shape)
+
         return code

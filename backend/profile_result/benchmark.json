@@ -2,128 +2,121 @@
   {
     "ir_id": 0,
     "ir_expression": "(ploop 0 4 tile_i i (sloop 0 4 tile_j j (store (output out0) (cast float32 (<= (erf (abs (load (input x) (index (tile i) (tile j))))) (load (input y) (index (tile i) (tile j))))) (index (tile i) (tile j)))))",
-    "execution_time_ms": 0.004199039936065674,
+    "execution_time_ms": 0.004118080139160156,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 1,
     "ir_expression": "(ploop 0 4 tile_i i (sloop 0 4 tile_j j (store (output out1) (min (load (input x) (index (tile i) (tile j))) (max (load (input y) (index (tile i) (tile j))) (transpose (load (input w) (index (tile j) (tile i)))))) (index (tile i) (tile j)))))",
-    "execution_time_ms": 0.0041446399688720706,
+    "execution_time_ms": 0.0041459199786186215,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 2,
     "ir_expression": "(ploop 0 4 tile_i i (sloop 0 4 tile_j j (store (output out2) (erf (abs (transpose (load (input w) (index (tile j) (tile i)))))) (index (tile i) (tile j)))))",
-    "execution_time_ms": 0.004063679873943329,
+    "execution_time_ms": 0.004105280041694641,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 3,
     "ir_expression": "(ploop 0 4 tile_i i (sloop 0 4 tile_j j (store (output out3) (cast float32 (<= (abs (load (input x) (index (tile i) (tile j)))) (abs (load (input y) (index (tile i) (tile j)))))) (index (tile i) (tile j)))))",
-    "execution_time_ms": 0.004300799965858459,
+    "execution_time_ms": 0.0041673600673675535,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 4,
     "ir_expression": "(ploop 0 4 tile_i i (sloop 0 4 tile_j j (store (output out4) (max (transpose (load (input w) (index (tile j) (tile i)))) (min (load (input x) (index (tile i) (tile j))) (load (input y) (index (tile i) (tile j))))) (index (tile i) (tile j)))))",
-    "execution_time_ms": 0.004147199988365173,
+    "execution_time_ms": 0.004126720130443573,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 5,
     "ir_expression": "(ploop 0 4 tile_i i (sloop 0 4 tile_j j (store (output out5) (cast float32 (<= (max (load (input x) (index (tile i) (tile j))) (load (input y) (index (tile i) (tile j)))) (min (load (input y) (index (tile i) (tile j))) (transpose (load (input w) (index (tile j) (tile i))))))) (index (tile i) (tile j)))))",
-    "execution_time_ms": 0.004095999896526337,
+    "execution_time_ms": 0.004126720130443573,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
-    "ir_id": 6,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out6) (max (permute3 (load (input t3) (index (tile i) fulltile fulltile)) 1 0 2) (min (load (input u3) (index (tile i) fulltile fulltile)) (abs (load (input v3) (index (tile i) fulltile fulltile))))) (index (tile i) fulltile fulltile)))",
-    "execution_time_ms": Infinity,
-    "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "at 38:34:\n    mask_0 = (i_indices < 2)[:, None, None] & (fulltile_1_indices < 3)[None, :, None]\n    temp_0 = tl.load(t3_ptr + offset_0, mask=mask_0, other=0.0)\n    temp_1 = tl.permute(temp_0, (1, 0, 2))\n    offset_1 = (i + tl.arange(0, BLOCK_I))[:, None, None] * u3_stride0 + (tl.arange(0, 4))[None, :, None] * u3_stride1 + (tl.arange(0, 4))[None, None, :] * u3_stride2\n    mask_1 = (i_indices < 2)[:, None, None] & (fulltile_1_indices < 3)[None, :, None]\n    temp_2 = tl.load(u3_ptr + offset_1, mask=mask_1, other=0.0)\n    offset_2 = (i + tl.arange(0, BLOCK_I))[:, None, None] * v3_stride0 + (tl.arange(0, 4))[None, :, None] * v3_stride1 + (tl.arange(0, 4))[None, None, :] * v3_stride2\n    mask_2 = (i_indices < 2)[:, None, None] & (fulltile_1_indices < 3)[None, :, None]\n    temp_3 = tl.load(v3_ptr + offset_2, mask=mask_2, other=0.0)\n    offset_3 = (i + tl.arange(0, BLOCK_I))[:, None, None] * out6_stride0 + (tl.arange(0, 4))[None, :, None] * out6_stride1 + (tl.arange(0, 4))[None, None, :] * out6_stride2\n    mask_3 = (i_indices < 2)[:, None, None] & (fulltile_1_indices < 3)[None, :, None]\n    tl.store(out6_ptr + offset_3, tl.maximum(temp_1, tl.minimum(temp_2, tl.abs(temp_3).to(tl.float16)).to(tl.float16)).to(tl.float16), mask=mask_3)\n                                  ^"
-  },
-  {
     "ir_id": 7,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out7) (cast float32 (<= (erf (abs (load (input t3) (index (tile i) fulltile fulltile)))) (load (input u3) (index (tile i) fulltile fulltile)))) (index (tile i) fulltile fulltile)))",
-    "execution_time_ms": 0.004341759979724884,
+    "execution_time_ms": 0.004095360040664673,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 8,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out8) (rmin (load (input t3) (index (tile i) fulltile fulltile)) 2) (index (tile i) fulltile)))",
-    "execution_time_ms": 0.0045875200629234315,
+    "execution_time_ms": 0.004186559915542603,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 9,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out9) (rmax (load (input t3) (index (tile i) fulltile fulltile)) 1) (index (tile i) fulltile)))",
-    "execution_time_ms": 0.004167680144309998,
+    "execution_time_ms": 0.004147199988365173,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 10,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out10) (abs (squeeze (unsqueeze (load (input u3) (index (tile i) fulltile fulltile)) 1) 1)) (index (tile i) fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "execution_time_ms": 0.004095360040664673,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "at 22:13:\n):\n    # Parallel loop i from 0 to out10_dim0 with tile size BLOCK_I\n    # Executed across grid dimension 0\n    i = 0 + tl.program_id(0) * BLOCK_I\n\n    offset_0 = (i + tl.arange(0, BLOCK_I))[:, None, None] * u3_stride0 + (tl.arange(0, 4))[None, :, None] * u3_stride1 + (tl.arange(0, 4))[None, None, :] * u3_stride2\n    i_indices = i + tl.arange(0, BLOCK_I)\n    fulltile_1_indices = tl.arange(0, 4)\n    mask_0 = (i_indices < 2)[:, None, None] & (fulltile_1_indices < 3)[None, :, None]\n    temp_0 = tl.load(u3_ptr + offset_0, mask=mask_0, other=0.0)\n    temp_1 = tl.expand_dims(temp_0, 1)\n    temp_2 = tl.reshape(temp_1, (2, 3, 4))\n             ^"
+    "error": null
   },
   {
     "ir_id": 11,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out11) (transpose (permute3 (load (input v3) (index (tile i) fulltile fulltile)) 2 0 1)) (index (tile i) fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out11) (permute3 (load (input v3) (index (tile i) fulltile fulltile)) 0 1 2) (index (tile i) fulltile fulltile)))",
+    "execution_time_ms": 0.004095680117607117,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "at 24:4:\n    # Executed across grid dimension 0\n    i = 0 + tl.program_id(0) * BLOCK_I\n\n    offset_0 = (i + tl.arange(0, BLOCK_I))[:, None, None] * v3_stride0 + (tl.arange(0, 4))[None, :, None] * v3_stride1 + (tl.arange(0, 4))[None, None, :] * v3_stride2\n    i_indices = i + tl.arange(0, BLOCK_I)\n    fulltile_1_indices = tl.arange(0, 4)\n    mask_0 = (i_indices < 2)[:, None, None] & (fulltile_1_indices < 3)[None, :, None]\n    temp_0 = tl.load(v3_ptr + offset_0, mask=mask_0, other=0.0)\n    temp_1 = tl.permute(temp_0, (2, 0, 1))\n    offset_1 = (i + tl.arange(0, BLOCK_I))[:, None, None] * out11_stride0 + (tl.arange(0, 4))[None, :, None] * out11_stride1 + (tl.arange(0, 4))[None, None, :] * out11_stride2\n    mask_1 = (i_indices < 2)[:, None, None] & (fulltile_1_indices < 3)[None, :, None]\n    tl.store(out11_ptr + offset_1, tl.permute(temp_1, (0, 2, 1)).to(tl.float16), mask=mask_1)\n    ^"
+    "error": null
   },
   {
     "ir_id": 12,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out12) (min (transpose (load (input u3) (index (tile i) fulltile fulltile))) (max (permute3 (load (input t3) (index (tile i) fulltile fulltile)) 0 2 1) (abs (load (input v3) (index (tile i) fulltile fulltile))))) (index (tile i) fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out12) (min (load (input u3) (index (tile i) fulltile fulltile)) (max (permute3 (load (input t3) (index (tile i) fulltile fulltile)) 0 1 2) (abs (load (input v3) (index (tile i) fulltile fulltile))))) (index (tile i) fulltile fulltile)))",
+    "execution_time_ms": 0.004116480052471161,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "Failed to generate kernel"
+    "error": null
   },
   {
     "ir_id": 13,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out13) (max (squeeze (unsqueeze (abs (load (input a4) (index (tile i) fulltile fulltile fulltile))) 1) 1) (min (load (input b4) (index (tile i) fulltile fulltile fulltile)) (permute4 (load (input c4) (index (tile i) fulltile fulltile fulltile)) 0 2 1 3))) (index (tile i) fulltile fulltile fulltile)))",
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out13) (max (squeeze (unsqueeze (abs (load (input a4) (index (tile i) fulltile fulltile fulltile))) 1) 1) (min (load (input b4) (index (tile i) fulltile fulltile fulltile)) (permute4 (load (input c4) (index (tile i) fulltile fulltile fulltile)) 0 1 2 3))) (index (tile i) fulltile fulltile fulltile)))",
     "execution_time_ms": Infinity,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": "Failed to generate kernel"
   },
   {
     "ir_id": 14,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out14) (cast float32 (<= (load (input a4) (index (tile i) fulltile fulltile fulltile)) (transpose (squeeze (unsqueeze (load (input b4) (index (tile i) fulltile fulltile fulltile)) 2) 2)))) (index (tile i) fulltile fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out14) (cast float32 (<= (load (input a4) (index (tile i) fulltile fulltile fulltile)) (squeeze (unsqueeze (load (input b4) (index (tile i) fulltile fulltile fulltile)) 2) 2))) (index (tile i) fulltile fulltile fulltile)))",
+    "execution_time_ms": 0.004065279960632324,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "Failed to generate kernel"
+    "error": null
   },
   {
     "ir_id": 15,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out15) (abs (transpose (load (input d4) (index (tile i) fulltile fulltile fulltile)))) (index (tile i) fulltile fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out15) (abs (load (input d4) (index (tile i) fulltile fulltile fulltile))) (index (tile i) fulltile fulltile fulltile)))",
+    "execution_time_ms": 0.004116480052471161,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "Failed to generate kernel"
+    "error": null
   },
   {
     "ir_id": 16,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out16) (erf (min (load (input e4) (index (tile i) fulltile fulltile fulltile)) (max (load (input f4) (index (tile i) fulltile fulltile fulltile)) (abs (load (input g4) (index (tile i) fulltile fulltile fulltile)))))) (index (tile i) fulltile fulltile fulltile)))",
-    "execution_time_ms": 0.004385280013084411,
+    "execution_time_ms": 0.0041881600022315975,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 17,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out17) (max (permute4 (load (input h4) (index (tile i) fulltile fulltile fulltile)) 0 3 2 1) (transpose (load (input i4) (index (tile i) fulltile fulltile fulltile)))) (index (tile i) fulltile fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out17) (max (permute4 (load (input h4) (index (tile i) fulltile fulltile fulltile)) 0 1 2 3) (load (input i4) (index (tile i) fulltile fulltile fulltile))) (index (tile i) fulltile fulltile fulltile)))",
+    "execution_time_ms": 0.004403199851512909,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "Failed to generate kernel"
+    "error": null
   },
   {
     "ir_id": 18,
@@ -134,84 +127,84 @@
   },
   {
     "ir_id": 19,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out19) (min (permute4 (load (input c4) (index (tile i) fulltile fulltile fulltile)) 0 2 1 3) (max (abs (load (input d4) (index (tile i) fulltile fulltile fulltile))) (erf (load (input e4) (index (tile i) fulltile fulltile fulltile))))) (index (tile i) fulltile fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out19) (min (permute4 (load (input c4) (index (tile i) fulltile fulltile fulltile)) 0 1 2 3) (max (abs (load (input d4) (index (tile i) fulltile fulltile fulltile))) (erf (load (input e4) (index (tile i) fulltile fulltile fulltile))))) (index (tile i) fulltile fulltile fulltile)))",
+    "execution_time_ms": 0.004136959910392761,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "at 42:35:\n    mask_0 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_0 = tl.load(c4_ptr + offset_0, mask=mask_0, other=0.0)\n    temp_1 = tl.permute(temp_0, (0, 2, 1, 3))\n    offset_1 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * d4_stride0 + (tl.arange(0, 2))[None, :, None, None] * d4_stride1 + (tl.arange(0, 4))[None, None, :, None] * d4_stride2 + (tl.arange(0, 4))[None, None, None, :] * d4_stride3\n    mask_1 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_2 = tl.load(d4_ptr + offset_1, mask=mask_1, other=0.0)\n    offset_2 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * e4_stride0 + (tl.arange(0, 2))[None, :, None, None] * e4_stride1 + (tl.arange(0, 4))[None, None, :, None] * e4_stride2 + (tl.arange(0, 4))[None, None, None, :] * e4_stride3\n    mask_2 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_3 = tl.load(e4_ptr + offset_2, mask=mask_2, other=0.0)\n    offset_3 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * out19_stride0 + (tl.arange(0, 2))[None, :, None, None] * out19_stride1 + (tl.arange(0, 4))[None, None, :, None] * out19_stride2 + (tl.arange(0, 4))[None, None, None, :] * out19_stride3\n    mask_3 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    tl.store(out19_ptr + offset_3, tl.minimum(temp_1, tl.maximum(tl.abs(temp_2).to(tl.float16), tl.math.erf(temp_3.to(tl.float32)).to(tl.float16)).to(tl.float16)).to(tl.float16), mask=mask_3)\n                                   ^"
+    "error": null
   },
   {
     "ir_id": 20,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out20) (squeeze (unsqueeze (transpose (load (input f4) (index (tile i) fulltile fulltile fulltile))) 0) 0) (index (tile i) fulltile fulltile fulltile)))",
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out20) (squeeze (unsqueeze (load (input f4) (index (tile i) fulltile fulltile fulltile)) 0) 0) (index (tile i) fulltile fulltile fulltile)))",
     "execution_time_ms": Infinity,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "Failed to generate kernel"
+    "error": "at 26:35:\n    # Executed across grid dimension 0\n    i = 0 + tl.program_id(0) * BLOCK_I\n\n    offset_0 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * f4_stride0 + (tl.arange(0, 2))[None, :, None, None] * f4_stride1 + (tl.arange(0, 4))[None, None, :, None] * f4_stride2 + (tl.arange(0, 4))[None, None, None, :] * f4_stride3\n    i_indices = i + tl.arange(0, BLOCK_I)\n    fulltile_2_indices = tl.arange(0, 4)\n    mask_0 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_0 = tl.load(f4_ptr + offset_0, mask=mask_0, other=0.0)\n    temp_1 = tl.expand_dims(temp_0, 0)\n    offset_1 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * out20_stride0 + (tl.arange(0, 2))[None, :, None, None] * out20_stride1 + (tl.arange(0, 4))[None, None, :, None] * out20_stride2 + (tl.arange(0, 4))[None, None, None, :] * out20_stride3\n    mask_1 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    tl.store(out20_ptr + offset_1, tl.reshape(temp_1, (2, 2, 4, 4)).to(tl.float16), mask=mask_1)\n                                   ^"
   },
   {
     "ir_id": 21,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out21) (max (squeeze (unsqueeze (load (input g4) (index (tile i) fulltile fulltile fulltile)) 0) 0) (abs (load (input h4) (index (tile i) fulltile fulltile fulltile)))) (index (tile i) fulltile fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "execution_time_ms": 0.004154880046844483,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "at 29:13:\n):\n    # Parallel loop i from 0 to out21_dim0 with tile size BLOCK_I\n    # Executed across grid dimension 0\n    i = 0 + tl.program_id(0) * BLOCK_I\n\n    offset_0 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * g4_stride0 + (tl.arange(0, 2))[None, :, None, None] * g4_stride1 + (tl.arange(0, 4))[None, None, :, None] * g4_stride2 + (tl.arange(0, 4))[None, None, None, :] * g4_stride3\n    i_indices = i + tl.arange(0, BLOCK_I)\n    fulltile_2_indices = tl.arange(0, 4)\n    mask_0 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_0 = tl.load(g4_ptr + offset_0, mask=mask_0, other=0.0)\n    temp_1 = tl.expand_dims(temp_0, 0)\n    temp_2 = tl.reshape(temp_1, (2, 2, 3, 4))\n             ^"
+    "error": null
   },
   {
     "ir_id": 22,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out22) (rmin (load (input a4) (index (tile i) fulltile fulltile fulltile)) 3) (index (tile i) fulltile fulltile)))",
-    "execution_time_ms": 0.00413536012172699,
+    "execution_time_ms": 0.004126720130443573,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 23,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out23) (rmax (load (input b4) (index (tile i) fulltile fulltile fulltile)) 2) (index (tile i) fulltile fulltile)))",
-    "execution_time_ms": 0.004260480105876922,
+    "execution_time_ms": 0.004148800075054169,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 24,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out24) (rmin (load (input c4) (index (tile i) fulltile fulltile fulltile)) 1) (index (tile i) fulltile fulltile)))",
-    "execution_time_ms": 0.004044800102710724,
+    "execution_time_ms": 0.004116480052471161,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 25,
     "ir_expression": "(ploop 0 2 tile_i i (store (output out25) (rmax (load (input d4) (index (tile i) fulltile fulltile fulltile)) 0) (index fulltile fulltile fulltile)))",
-    "execution_time_ms": 0.004403199851512909,
+    "execution_time_ms": 0.0041881600022315975,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": null
   },
   {
     "ir_id": 26,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out26) (abs (transpose (permute4 (load (input e4) (index (tile i) fulltile fulltile fulltile)) 1 0 2 3))) (index (tile i) fulltile fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out26) (abs (permute4 (load (input e4) (index (tile i) fulltile fulltile fulltile)) 0 1 2 3)) (index (tile i) fulltile fulltile fulltile)))",
+    "execution_time_ms": 0.0041068801283836364,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "Failed to generate kernel"
+    "error": null
   },
   {
     "ir_id": 27,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out27) (max (min (load (input f4) (index (tile i) fulltile fulltile fulltile)) (permute4 (load (input g4) (index (tile i) fulltile fulltile fulltile)) 0 2 3 1)) (transpose (load (input h4) (index (tile i) fulltile fulltile fulltile)))) (index (tile i) fulltile fulltile fulltile)))",
-    "execution_time_ms": Infinity,
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out27) (max (min (load (input f4) (index (tile i) fulltile fulltile fulltile)) (permute4 (load (input g4) (index (tile i) fulltile fulltile fulltile)) 0 1 2 3)) (load (input h4) (index (tile i) fulltile fulltile fulltile))) (index (tile i) fulltile fulltile fulltile)))",
+    "execution_time_ms": 0.004117439985275268,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "Failed to generate kernel"
+    "error": null
   },
   {
     "ir_id": 28,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out28) (cast float32 (<= (permute4 (load (input i4) (index (tile i) fulltile fulltile fulltile)) 0 2 1 3) (permute4 (load (input j4) (index (tile i) fulltile fulltile fulltile)) 1 0 2 3))) (index (tile i) fulltile fulltile fulltile)))",
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out28) (cast float32 (<= (permute4 (load (input i4) (index (tile i) fulltile fulltile fulltile)) 0 2 1 3) (permute4 (load (input j4) (index (tile i) fulltile fulltile fulltile)) 0 2 1 3))) (index (tile i) fulltile fulltile fulltile)))",
     "execution_time_ms": Infinity,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
-    "error": "at 35:36:\n    i_indices = i + tl.arange(0, BLOCK_I)\n    fulltile_2_indices = tl.arange(0, 4)\n    mask_0 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_0 = tl.load(i4_ptr + offset_0, mask=mask_0, other=0.0)\n    temp_1 = tl.permute(temp_0, (0, 2, 1, 3))\n    offset_1 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * j4_stride0 + (tl.arange(0, 2))[None, :, None, None] * j4_stride1 + (tl.arange(0, 4))[None, None, :, None] * j4_stride2 + (tl.arange(0, 4))[None, None, None, :] * j4_stride3\n    mask_1 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_2 = tl.load(j4_ptr + offset_1, mask=mask_1, other=0.0)\n    temp_3 = tl.permute(temp_2, (1, 0, 2, 3))\n    offset_2 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * out28_stride0 + (tl.arange(0, 2))[None, :, None, None] * out28_stride1 + (tl.arange(0, 4))[None, None, :, None] * out28_stride2 + (tl.arange(0, 4))[None, None, None, :] * out28_stride3\n    mask_2 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    tl.store(out28_ptr + offset_2, (temp_1 <= temp_3).to(tl.float16).to(tl.float32), mask=mask_2)\n                                    ^\nValueError('Cannot make_shape_compatible: incompatible dimensions at index 0: 32 and 2')"
+    "error": "at 35:4:\n    i_indices = i + tl.arange(0, BLOCK_I)\n    fulltile_2_indices = tl.arange(0, 4)\n    mask_0 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_0 = tl.load(i4_ptr + offset_0, mask=mask_0, other=0.0)\n    temp_1 = tl.permute(temp_0, (0, 2, 1, 3))\n    offset_1 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * j4_stride0 + (tl.arange(0, 2))[None, :, None, None] * j4_stride1 + (tl.arange(0, 4))[None, None, :, None] * j4_stride2 + (tl.arange(0, 4))[None, None, None, :] * j4_stride3\n    mask_1 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    temp_2 = tl.load(j4_ptr + offset_1, mask=mask_1, other=0.0)\n    temp_3 = tl.permute(temp_2, (0, 2, 1, 3))\n    offset_2 = (i + tl.arange(0, BLOCK_I))[:, None, None, None] * out28_stride0 + (tl.arange(0, 2))[None, :, None, None] * out28_stride1 + (tl.arange(0, 4))[None, None, :, None] * out28_stride2 + (tl.arange(0, 4))[None, None, None, :] * out28_stride3\n    mask_2 = (i_indices < 2)[:, None, None, None] & (fulltile_2_indices < 3)[None, None, :, None]\n    tl.store(out28_ptr + offset_2, (temp_1 <= temp_3).to(tl.float16).to(tl.float32), mask=mask_2)\n    ^"
   },
   {
     "ir_id": 29,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out29) (min (abs (load (input k4) (index (tile i) fulltile fulltile fulltile))) (max (erf (load (input l4) (index (tile i) fulltile fulltile fulltile))) (transpose (load (input m4) (index (tile i) fulltile fulltile fulltile)))))) (index (tile i) fulltile fulltile fulltile)))",
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out29) (min (abs (load (input k4) (index (tile i) fulltile fulltile fulltile))) (max (erf (load (input l4) (index (tile i) fulltile fulltile fulltile))) (load (input m4) (index (tile i) fulltile fulltile fulltile))))) (index (tile i) fulltile fulltile fulltile)))",
     "execution_time_ms": Infinity,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": "Failed to generate kernel"
   },
   {
     "ir_id": 30,
-    "ir_expression": "(ploop 0 2 tile_i i (store (output out30) (max (squeeze (unsqueeze (abs (load (input n4) (index (tile i) fulltile fulltile fulltile))) 2) 2) (min (permute4 (load (input a4) (index (tile i) fulltile fulltile fulltile)) 0 3 2 1) (transpose (load (input b4) (index (tile i) fulltile fulltile fulltile)))))) (index (tile i) fulltile fulltile fulltile)))",
+    "ir_expression": "(ploop 0 2 tile_i i (store (output out30) (max (squeeze (unsqueeze (abs (load (input n4) (index (tile i) fulltile fulltile fulltile))) 2) 2) (min (permute4 (load (input a4) (index (tile i) fulltile fulltile fulltile)) 0 1 2 3) (load (input b4) (index (tile i) fulltile fulltile fulltile)))) (index (tile i) fulltile fulltile fulltile)))",
     "execution_time_ms": Infinity,
     "shapes_path": "../frontend/outputs/test_model/shapes.json",
     "error": "Failed to generate kernel"

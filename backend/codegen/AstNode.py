@@ -8,6 +8,7 @@ class ASTNode:
     children: List['ASTNode']
     value: Any = None
     tensor_shape: Optional[Tuple[Any, ...]] = None
+    block_shape: Optional[Tuple[Any, ...]] = None
     
     def __repr__(self):
         if self.value is not None:
