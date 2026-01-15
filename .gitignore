@@ -209,3 +209,4 @@ __marimo__/
 # Trinity outputs
 frontend/outputs/
 optimizer/expressions/
+backend/profile_result/
