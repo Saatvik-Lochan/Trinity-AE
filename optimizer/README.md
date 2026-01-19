@@ -34,6 +34,11 @@ optimizer/
 
 ## Usage
 
+### Install Dependency
+```bash
+sudo apt-get install libz3-dev
+```
+
 ### Run All Tests
 
 Run all combinations of models (falcon, llama) and methods (vanilla, prenorm, qknorm, keyformer, roco, ffn):
