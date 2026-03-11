@@ -1731,9 +1731,6 @@ def plan_fusion_groups(main_func: T.MainFunc) -> List[FusionGroup]:
                 slot: [analyses[idx].write_slots[slot] for idx in run]
                 for slot in range(len(base.write_slots))
             }
-            if not varying_read_slots:
-                i = j
-                continue
             groups.append(
                 FusionGroup(
                     call_indices=run,
@@ -1781,9 +1778,6 @@ def validate_fusion_groups(main_func: T.MainFunc, groups: List[FusionGroup]) -> 
             if _calls_conflict(base, cur):
                 errors.append(f"fusion group calls conflict: {indices}")
                 break
-
-        if not group.varying_read_slots:
-            errors.append(f"fusion group has no varying inputs: {indices}")
 
         for slot, exact_name in group.exact_read_slots.items():
             for idx in indices:
