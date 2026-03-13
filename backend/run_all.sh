@@ -35,3 +35,8 @@ for model_name in "${models[@]}"; do
     --shapes "../frontend/outputs/trinity/${model_name}/shapes.json"
   echo
 done
+
+# Example of running a single model:
+# python -m profile.benchmark \
+#    --ir "../optimizer/expressions/Roco_cost6_kern2.txt" \
+#    --shapes "../frontend/outputs/trinity/Roco/shapes.json"

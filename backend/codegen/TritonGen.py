@@ -582,6 +582,24 @@ import torch
             # Exclude local intermediate tensors (allocated with tl.zeros inside kernels)
             if tensor_name not in all_local_intermediate_tensors:
                 forward_params.append(tensor_name)
+
+        if "lv19" in all_tensors or "lv19" in all_local_intermediate_tensors:
+            print(
+                "[local-intermediate-debug] wrapper: "
+                f"all_tensors_has_lv19={'lv19' in all_tensors} "
+                f"all_local_has_lv19={'lv19' in all_local_intermediate_tensors} "
+                f"forward_params_has_lv19={'lv19' in forward_params} "
+                f"cross_kernel_has_lv19={'lv19' in self.cross_kernel_tensors}"
+            )
+        
+        if os.environ.get("TRITON_GEN_DEBUG") == "1":
+            print(
+                "[TRITON_GEN_DEBUG] wrapper "
+                f"all_tensors={sorted(all_tensors)} "
+                f"all_local_intermediate={sorted(all_local_intermediate_tensors)} "
+                f"forward_params={sorted(forward_params)} "
+                f"cross_kernel={sorted(self.cross_kernel_tensors)}"
+            )
         
         # Generate metadata for benchmark.py
         code = f"# Metadata for benchmark.py\n"
@@ -668,6 +686,15 @@ import torch
                                              if t not in intermediate_tensors 
                                              or (t in self.cross_kernel_tensors and t in tensors_used)
                                              or t in cross_sloop_memory_tensors])
+            if os.environ.get("TRITON_GEN_DEBUG") == "1":
+                print(
+                    "[TRITON_GEN_DEBUG] wrapper-kernel "
+                    f"{kernel_name}: "
+                    f"used={sorted(tensors_used)} "
+                    f"intermediate={sorted(intermediate_tensors)} "
+                    f"cross_sloop={sorted(cross_sloop_memory_tensors)} "
+                    f"kernel_args={sorted(non_intermediate_tensors)}"
+                )
             
             for tensor in non_intermediate_tensors:
                 # Pointer
@@ -1032,7 +1059,7 @@ import torch
         operations = self._flatten_seq(seq_node)
         
         # Track tensor writes and reads per kernel
-        tensor_writes = {}  # tensor -> kernel_id where it's written
+        tensor_writes = {}  # tensor -> set of kernel_ids where it's written
         tensor_reads = {}   # tensor -> set of kernel_ids where it's read
         
         # Analyze each kernel (operation)
@@ -1044,7 +1071,9 @@ import torch
             
             # Update global tracking
             for tensor in writes_in_kernel:
-                tensor_writes[tensor] = kernel_id
+                if tensor not in tensor_writes:
+                    tensor_writes[tensor] = set()
+                tensor_writes[tensor].add(kernel_id)
             
             for tensor in reads_in_kernel:
                 if tensor not in tensor_reads:
@@ -1052,10 +1081,10 @@ import torch
                 tensor_reads[tensor].add(kernel_id)
         
         # Identify cross-kernel tensors
-        for tensor, write_kernel in tensor_writes.items():
+        for tensor, write_kernels in tensor_writes.items():
             if tensor in tensor_reads:
                 for read_kernel in tensor_reads[tensor]:
-                    if write_kernel != read_kernel:
+                    if any(write_kernel != read_kernel for write_kernel in write_kernels):
                         # This tensor is written in one kernel and read in another
                         self.cross_kernel_tensors.add(tensor)
                         break
