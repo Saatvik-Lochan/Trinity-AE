@@ -1257,8 +1257,11 @@ def inline_shape_op_calls(main_func: T.MainFunc) -> T.MainFunc:
 
 def inline_elementwise_op_calls(main_func: T.MainFunc) -> T.MainFunc:
     """
-    Inline elementwise producer calls (add/sub/mul/div/exp/sigmoid/etc.)
+    Inline elementwise producer calls (add/sub/mul/div/sigmoid/etc.)
     into all consumers when indices match and output is used only via loads.
+
+    Exp producers are intentionally excluded to avoid duplicating expensive
+    elementwise work across multiple downstream consumers.
     """
     calls = list(main_func.calls)
     if len(calls) < 2:
@@ -1273,6 +1276,32 @@ def inline_elementwise_op_calls(main_func: T.MainFunc) -> T.MainFunc:
             return None
         store_index = store.index
         needed_inputs: set[str] = set()
+
+        def contains_exp(expr: T.ASTNode) -> bool:
+            if isinstance(expr, T.Exp):
+                return True
+            if isinstance(expr, (T.Add, T.Sub, T.Mul, T.Div, T.Max, T.Min, T.Matmul, T.GenericBinary)):
+                return contains_exp(expr.left) or contains_exp(expr.right)
+            if isinstance(expr, (T.Sqr, T.Sqrt, T.Sigmoid, T.Cast, T.Broadcast, T.ReduceSum, T.ReduceMax, T.ReduceMin, T.Squeeze, T.Unsqueeze, T.Permute3)):
+                return contains_exp(expr.val)
+            if isinstance(expr, T.Take):
+                return (
+                    contains_exp(expr.data)
+                    or contains_exp(expr.indices)
+                    or contains_exp(expr.index)
+                )
+            if isinstance(expr, T.Concat):
+                return contains_exp(expr.a) or contains_exp(expr.b)
+            if isinstance(expr, T.GenericCall):
+                return any(contains_exp(arg) for arg in expr.args)
+            if isinstance(expr, T.Load):
+                return False
+            if isinstance(expr, T.Const):
+                return False
+            return False
+
+        if contains_exp(store.value):
+            return None
 
         def visit(expr: T.ASTNode):
             if isinstance(expr, T.Load):
