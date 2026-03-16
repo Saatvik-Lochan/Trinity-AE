@@ -10,6 +10,8 @@ from core.to_ir import filter_identity_and_apply_alias
 from utils.io_utils import export_main_func
 from utils.ir_utils import (
     bind_main_func_calls,
+    eliminate_dead_calls,
+    eliminate_dead_seq_stores,
     inline_elementwise_op_calls,
     inline_shape_op_calls,
     normalize_main_func_axes,
@@ -72,6 +74,8 @@ def export_model_ir(
         main_func_ir = inline_shape_op_calls(main_func_ir)
     if inline_elementwise_op:
         main_func_ir = inline_elementwise_op_calls(main_func_ir)
+    main_func_ir = eliminate_dead_seq_stores(main_func_ir)
+    main_func_ir = eliminate_dead_calls(main_func_ir)
 
     fusion_groups = plan_fusion_groups(main_func_ir)
     errors = validate_main_func_errors(main_func_ir, context=context or basename)

@@ -18,3 +18,4 @@ TRINITY_MODEL_NAME=DecAttn cargo test --test test_custom_model optimize_custom_m
 
 Output:
 - `optimizer/expressions/{model_name}_cost6_kern2.txt`
+TRINITY_MODEL_NAME=Roco cargo test --test test_custom_model optimize_custom_model -- --nocapture

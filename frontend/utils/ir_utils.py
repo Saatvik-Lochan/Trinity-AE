@@ -1,8 +1,12 @@
 import copy
 import dataclasses
+import os
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Tuple
 import ir.AST as T
+
+
+_IR_DEBUG = os.getenv("TRINITY_DEBUG_IR", "").lower() in {"1", "true", "yes", "on"}
 
 
 @dataclass
@@ -1357,6 +1361,99 @@ def inline_elementwise_op_calls(main_func: T.MainFunc) -> T.MainFunc:
     )
 
 
+def eliminate_dead_seq_stores(main_func: T.MainFunc) -> T.MainFunc:
+    """
+    Remove stores whose destination is never used later inside the same primfunc and
+    is not externally visible as a call output or an input-side-effect write.
+    """
+    updated_calls: list[T.PrimFuncCall] = []
+    all_used_tensors = {tensor.name for tensor in main_func.input_tensors}
+    all_used_tensors.update(tensor.name for tensor in main_func.output_tensors)
+
+    for call in main_func.calls:
+        preserved_writes = {call.out_var_tensor.name}
+        preserved_writes.update(tensor.name for tensor in call.input_tensors)
+        new_root = _eliminate_dead_stores_in_node(call.primfunc.root_node, preserved_writes)
+
+        load_names = _collect_load_tensor_names(new_root)
+        store_names = _collect_store_tensor_names(new_root)
+        needed_input_names = load_names | (store_names & {tensor.name for tensor in call.input_tensors})
+
+        updated_call = T.PrimFuncCall(
+            primfunc=dataclasses.replace(
+                call.primfunc,
+                root_node=new_root,
+                input_tensors=[tensor for tensor in call.primfunc.input_tensors if tensor.name in needed_input_names],
+                allocated_tensors=[tensor for tensor in call.primfunc.allocated_tensors if tensor.name in store_names],
+            ),
+            out_var_tensor=call.out_var_tensor,
+            input_tensors=[tensor for tensor in call.input_tensors if tensor.name in needed_input_names],
+            call_index=call.call_index,
+        )
+        updated_calls.append(updated_call)
+        all_used_tensors.update(load_names)
+        all_used_tensors.update(store_names)
+        all_used_tensors.add(call.out_var_tensor.name)
+
+    return T.MainFunc(
+        calls=updated_calls,
+        input_tensors=main_func.input_tensors,
+        output_tensors=main_func.output_tensors,
+        intermediate_tensors=[
+            tensor for tensor in main_func.intermediate_tensors if tensor.name in all_used_tensors
+        ],
+    )
+
+
+def eliminate_dead_calls(main_func: T.MainFunc) -> T.MainFunc:
+    """
+    Remove calls whose outputs do not contribute to final outputs and that do not
+    write back to observable input buffers.
+    """
+    live_tensors = {tensor.name for tensor in main_func.output_tensors}
+    input_names = {tensor.name for tensor in main_func.input_tensors}
+    kept_rev: list[T.PrimFuncCall] = []
+
+    for call in reversed(main_func.calls):
+        root = call.primfunc.root_node
+        out_name = call.out_var_tensor.name
+        store_names = _collect_store_tensor_names(root)
+        load_names = _collect_load_tensor_names(root)
+        writes_input = bool(store_names & input_names)
+        is_live = out_name in live_tensors or writes_input
+
+        if not is_live:
+            if _IR_DEBUG:
+                print(
+                    f"[dce] drop call {call.call_index} {call.primfunc.name}: "
+                    f"out={out_name}, reads={sorted(load_names)}, writes={sorted(store_names)}"
+                )
+            continue
+
+        kept_rev.append(call)
+        live_tensors.discard(out_name)
+        live_tensors.update(load_names)
+        live_tensors.update(store_names & input_names)
+
+    kept_calls = list(reversed(kept_rev))
+    kept_tensor_names = set(live_tensors)
+    kept_tensor_names.update(t.name for t in main_func.output_tensors)
+    kept_tensor_names.update(t.name for t in main_func.input_tensors)
+    for call in kept_calls:
+        kept_tensor_names.add(call.out_var_tensor.name)
+        kept_tensor_names.update(_collect_store_tensor_names(call.primfunc.root_node))
+        kept_tensor_names.update(_collect_load_tensor_names(call.primfunc.root_node))
+
+    return T.MainFunc(
+        calls=kept_calls,
+        input_tensors=main_func.input_tensors,
+        output_tensors=main_func.output_tensors,
+        intermediate_tensors=[
+            tensor for tensor in main_func.intermediate_tensors if tensor.name in kept_tensor_names
+        ],
+    )
+
+
 def _extract_single_store(node: T.ASTNode) -> T.Store | None:
     if isinstance(node, T.Store):
         return node
@@ -1369,6 +1466,79 @@ def _extract_single_store(node: T.ASTNode) -> T.Store | None:
             return None
         return _extract_single_store(node.stmts[0])
     return None
+
+
+def _eliminate_dead_stores_in_node(node: T.ASTNode, preserved_writes: set[str]) -> T.ASTNode:
+    pruned, _ = _eliminate_dead_stores_in_stmt(node, set(), preserved_writes)
+    if pruned is None:
+        return T.Block([])
+    return pruned
+
+
+def _eliminate_dead_stores_in_stmt(
+    node: T.ASTNode,
+    live_after: set[str],
+    preserved_writes: set[str],
+) -> tuple[T.ASTNode | None, set[str]]:
+    if isinstance(node, T.Store):
+        target = node.tensor.name
+        if target not in live_after and target not in preserved_writes:
+            return None, set(live_after)
+        live_before = set(live_after)
+        live_before.discard(target)
+        live_before.update(_collect_load_tensor_names(node.value))
+        return node, live_before
+
+    if isinstance(node, T.Seq):
+        right_node, right_live = _eliminate_dead_stores_in_stmt(node.right, live_after, preserved_writes)
+        left_node, left_live = _eliminate_dead_stores_in_stmt(node.left, right_live, preserved_writes)
+        if left_node is None:
+            return right_node, left_live
+        if right_node is None:
+            return left_node, left_live
+        return T.Seq(left_node, right_node), left_live
+
+    if isinstance(node, T.Block):
+        live_now = set(live_after)
+        kept: list[T.ASTNode] = []
+        for stmt in reversed(node.stmts):
+            new_stmt, live_now = _eliminate_dead_stores_in_stmt(stmt, live_now, preserved_writes)
+            if new_stmt is not None:
+                kept.append(new_stmt)
+        kept.reverse()
+        if not kept:
+            return None, live_now
+        if len(kept) == 1:
+            return kept[0], live_now
+        return T.Block(kept), live_now
+
+    if isinstance(node, T.Loop):
+        new_body, live_before = _eliminate_dead_stores_in_stmt(node.body, live_after, preserved_writes)
+        if new_body is None:
+            return None, set(live_after)
+        return T.Loop(node.start, node.end, node.tile_name, node.loop_var, new_body), live_before
+
+    if isinstance(node, T.If):
+        then_node, then_live = _eliminate_dead_stores_in_stmt(node.then_branch, live_after, preserved_writes)
+        else_node = None
+        else_live = set(live_after)
+        if node.else_branch is not None:
+            else_node, else_live = _eliminate_dead_stores_in_stmt(node.else_branch, live_after, preserved_writes)
+        if then_node is None and else_node is None:
+            return None, set(live_after)
+        live_before = set(then_live) | set(else_live)
+        live_before.update(_collect_load_tensor_names(node.cond))
+        return T.If(node.cond, then_node or T.Block([]), else_node), live_before
+
+    if isinstance(node, T.Let):
+        new_body, live_before = _eliminate_dead_stores_in_stmt(node.body, live_after, preserved_writes)
+        if new_body is None:
+            return None, set(live_after)
+        live_before = set(live_before)
+        live_before.update(_collect_load_tensor_names(node.value))
+        return T.Let(node.tensor, node.value, new_body), live_before
+
+    return node, set(live_after) | _collect_load_tensor_names(node)
 
 
 def _shape_only_base(node: T.ASTNode) -> T.Load | None:
@@ -1747,12 +1917,28 @@ def plan_fusion_groups(main_func: T.MainFunc) -> List[FusionGroup]:
                 continue
             cur = analyses[j]
             if cur.signature != base.signature:
+                if calls[i].primfunc.name == calls[j].primfunc.name:
+                    if _IR_DEBUG:
+                        print(
+                            f"[fusion] skip pair ({i},{j}) {calls[i].primfunc.name}: "
+                            "signature_mismatch"
+                        )
                 j += 1
                 continue
             if any(_calls_conflict(analyses[k], cur) for k in run):
+                if _IR_DEBUG:
+                    print(
+                        f"[fusion] skip pair ({run[-1]},{j}) {calls[j].primfunc.name}: "
+                        f"conflict reads={sorted(cur.reads)} writes={sorted(cur.writes)}"
+                    )
                 j += 1
                 continue
             if any(_has_intervening_dependency_on_candidate(analyses, k, j) for k in run):
+                if _IR_DEBUG:
+                    print(
+                        f"[fusion] skip pair ({run[-1]},{j}) {calls[j].primfunc.name}: "
+                        "intervening_dependency"
+                    )
                 j += 1
                 continue
             next_exact = {
@@ -1784,6 +1970,11 @@ def plan_fusion_groups(main_func: T.MainFunc) -> List[FusionGroup]:
                     write_slots=write_slots,
                 )
             )
+            if _IR_DEBUG:
+                print(
+                    f"[fusion] group {base.signature[:80]}... -> {run} "
+                    f"writes={[analyses[idx].write_slots for idx in run]}"
+                )
             covered.update(run)
             i += 1
             continue
