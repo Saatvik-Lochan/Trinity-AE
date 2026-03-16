@@ -7,6 +7,7 @@ import ir.AST as T
 
 
 _IR_DEBUG = os.getenv("TRINITY_DEBUG_IR", "").lower() in {"1", "true", "yes", "on"}
+_AXIS_SCORE_DEBUG = os.getenv("TRINITY_DEBUG_AXIS_SCORE", "").lower() in {"1", "true", "yes", "on"}
 
 
 @dataclass
@@ -252,6 +253,22 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
     axis_pool = list("ijklmnopqrstuvwxyz")
     axis_index = 0
 
+    def _collect_outermost_loop_var(root_node: T.ASTNode) -> Optional[str]:
+        node = root_node
+        while True:
+            if isinstance(node, T.Loop):
+                return _clean_var_name(node.loop_var)
+            if isinstance(node, T.Seq):
+                node = node.left
+                continue
+            if isinstance(node, T.Block) and node.stmts:
+                node = node.stmts[0]
+                continue
+            if isinstance(node, T.Let):
+                node = node.body
+                continue
+            return None
+
     def axis_access_map(patterns: dict[str, dict[str, set[str]]]) -> dict[str, dict[str, set[int]]]:
         access_map: dict[str, dict[str, set[int]]] = {}
         for axis, entry in patterns.items():
@@ -408,6 +425,7 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
         access_map = axis_access_map(patterns)
         range_map = axis_range_map(bound_primfunc.root_node)
         tile_map = axis_tile_map(bound_primfunc.root_node)
+        outermost_axis = _collect_outermost_loop_var(bound_primfunc.root_node)
 
         rename_map: dict[str, str] = {}
         loop_axes = _collect_loop_vars(bound_primfunc.root_node)
@@ -417,9 +435,14 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
             access = access_map.get(axis_key, {})
             axis_range = range_map.get(axis_key, (None, None))
             axis_tile = tile_map.get(axis_key)
+            axis_outer_count = 1 if outermost_axis == axis_key else 0
+            scored_candidates: list[
+                tuple[int, str, int, int, tuple[Optional[int], Optional[int]], Optional[str], dict[str, set[int]]]
+            ] = []
 
             best_idx = None
             best_score = -1
+            best_outer_score = -1
             for idx, group in enumerate(canonical_groups):
                 if axis_range not in group["ranges"]:
                     continue
@@ -429,8 +452,21 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                     continue
                 shared = set(access.keys()) & set(group["access"].keys())
                 score = len(shared)
-                if score > best_score:
+                outer_score = group.get("outer_count", 0)
+                scored_candidates.append(
+                    (
+                        idx,
+                        group["name"],
+                        score,
+                        outer_score,
+                        axis_range,
+                        axis_tile,
+                        access,
+                    )
+                )
+                if score > best_score or (score == best_score and outer_score > best_outer_score):
                     best_score = score
+                    best_outer_score = outer_score
                     best_idx = idx
 
             if best_idx is None:
@@ -442,16 +478,36 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                         "access": {k: set(v) for k, v in access.items()},
                         "ranges": {axis_range},
                         "tiles": {axis_tile},
+                        "outer_count": axis_outer_count,
                     }
                 )
                 rename_map[axis] = name
                 if axis_key != axis:
                     rename_map[axis_key] = name
+                if _AXIS_SCORE_DEBUG:
+                    print(
+                        f"[axis-score] new axis={axis} key={axis_key} "
+                        f"range={axis_range} tile={axis_tile} access={access} "
+                        f"outer_count={axis_outer_count} -> {name}"
+                    )
             else:
                 group = canonical_groups[best_idx]
                 rename_map[axis] = group["name"]
                 if axis_key != axis:
                     rename_map[axis_key] = group["name"]
+                if _AXIS_SCORE_DEBUG:
+                    candidates_str = ", ".join(
+                        f"idx={idx}/name={name}/score={score}/outer={outer_score}"
+                        for idx, name, score, outer_score, _, _, _ in scored_candidates
+                    )
+                    print(
+                        f"[axis-score] axis={axis} key={axis_key} "
+                        f"range={axis_range} tile={axis_tile} access={access} "
+                        f"axis_outer_count={axis_outer_count} "
+                        f"candidates=[{candidates_str}] -> pick idx={best_idx} name={group['name']} "
+                        f"score={best_score} outer={best_outer_score}"
+                    )
+                group["outer_count"] = group.get("outer_count", 0) + axis_outer_count
                 for tensor, dims in access.items():
                     if tensor not in group["access"]:
                         group["access"][tensor] = set(dims)
