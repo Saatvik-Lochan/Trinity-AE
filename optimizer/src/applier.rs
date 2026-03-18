@@ -1,10 +1,10 @@
 //! Custom appliers for complex rewrite rules
 
-use egg::*;
-use crate::language::TileLang;
-use crate::language::LoopAnalysis;
 use crate::dependency::*;
+use crate::language::LoopAnalysis;
+use crate::language::TileLang;
 use crate::utils::*;
+use egg::*;
 
 pub type EGraph = egg::EGraph<TileLang, LoopAnalysis>;
 
@@ -42,7 +42,9 @@ impl Applier<TileLang, LoopAnalysis> for LoopSplit {
                 }
             }
             // Fallback if not a variable
-            egraph.add(TileLang::Var(format!("{}_{}", prefix, id.as_usize()).into()))
+            egraph.add(TileLang::Var(
+                format!("{}_{}", prefix, id.as_usize()).into(),
+            ))
         }
 
         let new_tile_id = rename_var(egraph, subst[self.tile], "new");
@@ -55,7 +57,8 @@ impl Applier<TileLang, LoopAnalysis> for LoopSplit {
         subst.insert(self.new_a, new_a_id);
 
         // Apply the RHS pattern using the updated substitution
-        self.rhs.apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+        self.rhs
+            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
     }
 }
 
@@ -93,7 +96,9 @@ impl Applier<TileLang, LoopAnalysis> for LoopSplitTail {
                 }
             }
             // Fallback if not a variable
-            egraph.add(TileLang::Var(format!("{}_{}", prefix, id.as_usize()).into()))
+            egraph.add(TileLang::Var(
+                format!("{}_{}", prefix, id.as_usize()).into(),
+            ))
         }
 
         let new_tile_id = rename_var(egraph, subst[self.tile], "new");
@@ -106,7 +111,8 @@ impl Applier<TileLang, LoopAnalysis> for LoopSplitTail {
         subst.insert(self.new_a, new_a_id);
 
         // Apply the RHS pattern using the updated substitution
-        self.rhs.apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+        self.rhs
+            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
     }
 }
 
@@ -128,8 +134,8 @@ impl Applier<TileLang, LoopAnalysis> for LoopFusion {
         egraph: &mut EGraph,
         eclass: Id,
         subst: &Subst,
-        searcher_ast: Option<&PatternAst<TileLang>>,
-        rule_name: Symbol,
+        _searcher_ast: Option<&PatternAst<TileLang>>,
+        _rule_name: Symbol,
     ) -> Vec<Id> {
         let start = subst[self.start];
         let n = subst[self.n];
@@ -141,7 +147,8 @@ impl Applier<TileLang, LoopAnalysis> for LoopFusion {
         let body1 = subst[self.body1];
         let body2 = subst[self.body2];
 
-        let no_dep = no_raw_dependency(self.body1, self.body2, self.loop_var1)(egraph, eclass, subst);
+        let no_dep =
+            no_raw_dependency(self.body1, self.body2, self.loop_var1)(egraph, eclass, subst);
 
         let is_num_tile1 = is_num(self.tile1)(egraph, eclass, subst);
         let is_num_tile2 = is_num(self.tile2)(egraph, eclass, subst);
@@ -233,7 +240,8 @@ impl Applier<TileLang, LoopAnalysis> for LoopFusionTail {
         let body2 = subst[self.body2];
         let others = subst[self.others];
 
-        let no_dep = no_raw_dependency(self.body1, self.body2, self.loop_var1)(egraph, eclass, subst);
+        let no_dep =
+            no_raw_dependency(self.body1, self.body2, self.loop_var1)(egraph, eclass, subst);
         let is_num_tile1 = is_num(self.tile1)(egraph, eclass, subst);
         let is_num_tile2 = is_num(self.tile2)(egraph, eclass, subst);
         let cond1_nm = cond1(self.n, self.tile1, self.m)(egraph, eclass, subst);

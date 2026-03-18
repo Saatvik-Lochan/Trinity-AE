@@ -70,8 +70,8 @@ setup_shape_tracker(vec![
         (loop 0 4096 tile_k k
             (store (tensor Q1,K1,V1)
                 (+
-                    (x (load (tensor Q1,K1,V1) (index (fulltile) (tile n))) 1)
-                    (*
+                    (* (load (tensor Q1,K1,V1) (index (fulltile) (tile n))) 1)
+                    (@
                         (load (input X) (index (fulltile) (tile k)))
                         (load (input WQ,WK,WV) (index (tile k) (tile n)))
                     )
@@ -129,7 +129,7 @@ setup_shape_tracker(vec![
     (loop 0 32 tile_h h 
         (loop 0 1024 tile_p p
             (store (tensor C)
-                (*
+                (@
                     (load (tensor Q_norm) (index (tile h) (fulltile) (fulltile)))
                     (permute3
                         (load (input K_cache) (index (tile h) (tile p) (fulltile)))
@@ -154,7 +154,7 @@ setup_shape_tracker(vec![
         (loop 0 1024 tile_p p
             (store (tensor C_sum)
                 (+
-                    (x (load (tensor C_sum) (index (tile h) (fulltile))) 1)
+                    (* (load (tensor C_sum) (index (tile h) (fulltile))) 1)
                     (rsum
                         (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
                         2
@@ -184,8 +184,8 @@ setup_shape_tracker(vec![
         (loop 0 1024 tile_p p
             (store (tensor O)
                 (+
-                    (x (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
-                    (*
+                    (* (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
+                    (@
                         (load (tensor C_div) (index (tile h) (fulltile) (tile p)))
                         (load (input V_cache) (index (tile h) (tile p) (fulltile)))
                     )
@@ -301,8 +301,8 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         (loop 0 4544 tile_k k
             (store (tensor Q1,K1,V1)
                 (+
-                    (x (load (tensor Q1,K1,V1) (index (fulltile) (tile n))) 1)
-                    (*
+                    (* (load (tensor Q1,K1,V1) (index (fulltile) (tile n))) 1)
+                    (@
                         (load (input X) (index (fulltile) (tile k)))
                         (load (input WQ,WK,WV) (index (tile k) (tile n)))
                     )
@@ -360,7 +360,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
     (loop 0 71 tile_h h 
         (loop 0 1024 tile_p p
             (store (tensor C)
-                (*
+                (@
                     (load (tensor Q_norm) (index (tile h) (fulltile) (fulltile)))
                     (permute3
                         (load (input K_cache) (index (tile h) (tile p) (fulltile)))
@@ -385,7 +385,7 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         (loop 0 1024 tile_p p
             (store (tensor C_sum)
                 (+
-                    (x (load (tensor C_sum) (index (tile h) (fulltile))) 1)
+                    (* (load (tensor C_sum) (index (tile h) (fulltile))) 1)
                     (rsum
                         (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
                         2
@@ -415,8 +415,8 @@ fn falcon_extract_rmsnorm_qkv_attn_expressions() {
         (loop 0 1024 tile_p p
             (store (tensor O)
                 (+
-                    (x (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
-                    (*
+                    (* (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
+                    (@
                         (load (tensor C_div) (index (tile h) (fulltile) (tile p)))
                         (load (input V_cache) (index (tile h) (tile p) (fulltile)))
                     )
@@ -528,8 +528,8 @@ fn count_all() {
         (loop 0 4544 tile_k k
             (store (tensor Q1,K1,V1)
                 (+
-                    (x (load (tensor Q1,K1,V1) (index (fulltile) (tile n))) 1)
-                    (*
+                    (* (load (tensor Q1,K1,V1) (index (fulltile) (tile n))) 1)
+                    (@
                         (load (input X) (index (fulltile) (tile k)))
                         (load (input WQ,WK,WV) (index (tile k) (tile n)))
                     )
@@ -587,7 +587,7 @@ fn count_all() {
     (loop 0 71 tile_h h 
         (loop 0 1040 tile_p p
             (store (tensor C)
-                (*
+                (@
                     (load (tensor Q_norm) (index (tile h) (fulltile) (fulltile)))
                     (permute3
                         (load (input K_cache) (index (tile h) (tile p) (fulltile)))
@@ -612,7 +612,7 @@ fn count_all() {
         (loop 0 1040 tile_p p
             (store (tensor C_sum)
                 (+
-                    (x (load (tensor C_sum) (index (tile h) (fulltile))) 1)
+                    (* (load (tensor C_sum) (index (tile h) (fulltile))) 1)
                     (rsum
                         (load (tensor C_exp) (index (tile h) (fulltile) (tile p)))
                         2
@@ -642,8 +642,8 @@ fn count_all() {
         (loop 0 1040 tile_p p
             (store (tensor O)
                 (+
-                    (x (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
-                    (*
+                    (* (load (tensor O) (index (tile h) (fulltile) (fulltile))) 1)
+                    (@
                         (load (tensor C_div) (index (tile h) (fulltile) (tile p)))
                         (load (input V_cache) (index (tile h) (tile p) (fulltile)))
                     )

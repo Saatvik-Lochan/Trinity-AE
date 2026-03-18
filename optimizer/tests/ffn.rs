@@ -59,8 +59,8 @@ fn llama_extract_ffn_expressions() {
         (loop 0 4096 tile_k k
             (store (tensor attn_O1)
                 (+
-                    (x (load (tensor attn_O1) (index (fulltile) (tile n))) 1)
-                    (*
+                    (* (load (tensor attn_O1) (index (fulltile) (tile n))) 1)
+                    (@
                         (load (input O2) (index (fulltile) (tile k)))
                         (load (input WO) (index (tile k) (tile n)))
                     )
@@ -83,7 +83,7 @@ fn llama_extract_ffn_expressions() {
     (loop 0 4096 tile_k k
         (store (tensor attn_O3)
             (+
-                (x (load (tensor attn_O3) (index (fulltile))) 1)
+                (* (load (tensor attn_O3) (index (fulltile))) 1)
                 (rsum
                     (sqr (load (tensor attn_O2) (index (fulltile) (tile k))))
                     1
@@ -115,8 +115,8 @@ fn llama_extract_ffn_expressions() {
         (loop 0 4096 tile_k k
             (store (tensor FF1a)
                 (+
-                    (x (load (tensor FF1a) (index (fulltile) (tile p))) 1)
-                    (*
+                    (* (load (tensor FF1a) (index (fulltile) (tile p))) 1)
+                    (@
                         (load (tensor attn_O_norm) (index (fulltile) (tile k)))
                         (load (input WFF1a) (index (tile k) (tile p)))
                     )
@@ -130,8 +130,8 @@ fn llama_extract_ffn_expressions() {
         (loop 0 4096 tile_k k
             (store (tensor FF1b)
                 (+
-                    (x (load (tensor FF1b) (index (fulltile) (tile p))) 1)
-                    (*
+                    (* (load (tensor FF1b) (index (fulltile) (tile p))) 1)
+                    (@
                         (load (tensor attn_O_norm) (index (fulltile) (tile k)))
                         (load (input WFF1b) (index (tile k) (tile p)))
                     )
@@ -166,8 +166,8 @@ fn llama_extract_ffn_expressions() {
         (loop 0 16384 tile_p p
             (store (output FF2)
                 (+
-                    (x (load (output FF2) (index (fulltile) (tile n))) 1)
-                    (*
+                    (* (load (output FF2) (index (fulltile) (tile n))) 1)
+                    (@
                         (load (tensor FF1) (index (fulltile) (tile p)))
                         (load (input WFF2) (index (tile p) (tile n)))
                     )
@@ -253,8 +253,8 @@ fn falcon_extract_ffn_expressions() {
         (loop 0 4544 tile_k k
             (store (tensor attn_O1)
                 (+
-                    (x (load (tensor attn_O1) (index (fulltile) (tile n))) 1)
-                    (*
+                    (* (load (tensor attn_O1) (index (fulltile) (tile n))) 1)
+                    (@
                         (load (input O2) (index (fulltile) (tile k)))
                         (load (input WO) (index (tile k) (tile n)))
                     )
@@ -277,7 +277,7 @@ fn falcon_extract_ffn_expressions() {
     (loop 0 4544 tile_k k
         (store (tensor attn_O3)
             (+
-                (x (load (tensor attn_O3) (index (fulltile))) 1)
+                (* (load (tensor attn_O3) (index (fulltile))) 1)
                 (rsum
                     (sqr (load (tensor attn_O2) (index (fulltile) (tile k))))
                     1
@@ -309,8 +309,8 @@ fn falcon_extract_ffn_expressions() {
         (loop 0 4544 tile_k k
             (store (tensor FF1a)
                 (+
-                    (x (load (tensor FF1a) (index (fulltile) (tile p))) 1)
-                    (*
+                    (* (load (tensor FF1a) (index (fulltile) (tile p))) 1)
+                    (@
                         (load (tensor attn_O_norm) (index (fulltile) (tile k)))
                         (load (input WFF1a) (index (tile k) (tile p)))
                     )
@@ -324,8 +324,8 @@ fn falcon_extract_ffn_expressions() {
         (loop 0 4544 tile_k k
             (store (tensor FF1b)
                 (+
-                    (x (load (tensor FF1b) (index (fulltile) (tile p))) 1)
-                    (*
+                    (* (load (tensor FF1b) (index (fulltile) (tile p))) 1)
+                    (@
                         (load (tensor attn_O_norm) (index (fulltile) (tile k)))
                         (load (input WFF1b) (index (tile k) (tile p)))
                     )
@@ -360,8 +360,8 @@ fn falcon_extract_ffn_expressions() {
         (loop 0 18176 tile_p p
             (store (output FF2)
                 (+
-                    (x (load (output FF2) (index (fulltile) (tile n))) 1)
-                    (*
+                    (* (load (output FF2) (index (fulltile) (tile n))) 1)
+                    (@
                         (load (tensor FF1) (index (fulltile) (tile p)))
                         (load (input WFF2) (index (tile p) (tile n)))
                     )
