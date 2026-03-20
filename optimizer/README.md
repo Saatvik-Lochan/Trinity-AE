@@ -12,9 +12,10 @@ Expected input files:
 Run the test:
 
 ```bash
-TRINITY_MODEL_NAME={model_name} cargo test --test test_custom_model optimize_exported_mainfunc -- --nocapture
-TRINITY_MODEL_NAME=Roco cargo test --test test_custom_model optimize_exported_mainfunc -- --nocapture  # example
+TRINITY_MODEL_NAME={model_name} cargo test --test test_custom_model optimize_custom_model -- --nocapture
+TRINITY_MODEL_NAME=DecAttn cargo test --test test_custom_model optimize_custom_model -- --nocapture  # example
 ```
 
 Output:
 - `optimizer/expressions/{model_name}_cost6_kern2.txt`
+TRINITY_MODEL_NAME=Roco cargo test --test test_custom_model optimize_custom_model -- --nocapture

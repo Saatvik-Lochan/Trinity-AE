@@ -1,5 +1,9 @@
+import os
 from typing import List
 import ir.AST as T
+
+
+_IR_DEBUG = os.getenv("TRINITY_DEBUG_IR", "").lower() in {"1", "true", "yes", "on"}
 
 def ast_to_lisp(node, level=0, role_map=None):
     """
@@ -210,55 +214,135 @@ def _is_simple_identity_index(node: T.ASTNode) -> bool:
     return False
 
 
-def _is_identity_call(call: T.PrimFuncCall) -> bool:
+def _analyze_identity_call(call: T.PrimFuncCall) -> tuple[bool, str]:
     store = _extract_single_store(call.primfunc.root_node)
     if store is None:
-        return False
+        return False, "no_single_store"
     value = store.value
     if isinstance(value, T.GenericCall) and value.func_name == "transpose":
         if not value.args:
-            return False
+            return False, "transpose_without_args"
         load = value.args[0]
         if not isinstance(load, T.Load):
-            return False
+            return False, "transpose_base_not_load"
         if len(value.args) == 1:
             perm = list(reversed(range(len(load.index.indices))))
         else:
             perm = []
             for arg in value.args[1:]:
                 if not isinstance(arg, T.Const):
-                    return False
+                    return False, "transpose_perm_not_const"
                 if not isinstance(arg.value, int):
-                    return False
+                    return False, "transpose_perm_not_int"
                 perm.append(arg.value)
         if perm != list(range(len(perm))):
-            return False
+            return False, f"transpose_not_identity:{perm}"
         value = load
     if isinstance(value, T.Permute3):
         if (value.d0, value.d1, value.d2) != (0, 1, 2):
-            return False
+            return False, f"permute3_not_identity:{(value.d0, value.d1, value.d2)}"
         if not isinstance(value.val, T.Load):
-            return False
+            return False, "permute3_base_not_load"
         value = value.val
     if not isinstance(value, T.Load):
-        return False
+        return False, f"value_not_load:{type(value).__name__}"
     if len(call.input_tensors) != 1:
-        return False
+        return False, f"input_count:{len(call.input_tensors)}"
     input_tensor = call.input_tensors[0]
     if value.tensor.name != input_tensor.name:
-        return False
+        return False, f"load_tensor_mismatch:{value.tensor.name}!={input_tensor.name}"
     if input_tensor.shape != call.out_var_tensor.shape:
-        return False
+        return False, f"shape_mismatch:{input_tensor.shape}!={call.out_var_tensor.shape}"
     # Only treat as identity if indices are plain tiles/fulltile.
     if not _is_simple_identity_index(store.index):
-        return False
+        return False, "store_index_not_simple_identity"
     if not _is_simple_identity_index(value.index):
-        return False
+        return False, "load_index_not_simple_identity"
     idx_lhs = ast_to_lisp(store.index, level=-1)
     idx_rhs = ast_to_lisp(value.index, level=-1)
     if idx_lhs != idx_rhs:
-        return False
-    return value.tensor.name == input_tensor.name
+        return False, f"index_mismatch:{idx_lhs}!={idx_rhs}"
+    if value.tensor.name != input_tensor.name:
+        return False, f"final_name_mismatch:{value.tensor.name}!={input_tensor.name}"
+    return True, "identity"
+
+
+def _analyze_copy_then_const_tile_overwrite_call(
+    call: T.PrimFuncCall,
+) -> tuple[bool, str, str | None, str | None, T.ASTNode | None]:
+    root = call.primfunc.root_node
+    if not isinstance(root, T.Seq):
+        return False, "root_not_seq", None, None, None
+
+    copy_store = _extract_single_store(root.left)
+    overwrite_store = _extract_single_store(root.right)
+    if copy_store is None or overwrite_store is None:
+        return False, "seq_branch_not_single_store", None, None, None
+
+    if copy_store.tensor.name != call.out_var_tensor.name:
+        return False, f"copy_target_mismatch:{copy_store.tensor.name}!={call.out_var_tensor.name}", None, None, None
+    if overwrite_store.tensor.name != call.out_var_tensor.name:
+        return False, f"overwrite_target_mismatch:{overwrite_store.tensor.name}!={call.out_var_tensor.name}", None, None, None
+
+    copy_value = copy_store.value
+    overwrite_value = overwrite_store.value
+    if not isinstance(copy_value, T.Load):
+        return False, f"copy_value_not_load:{type(copy_value).__name__}", None, None, None
+    if not isinstance(overwrite_value, T.Load):
+        return False, f"overwrite_value_not_load:{type(overwrite_value).__name__}", None, None, None
+
+    if not isinstance(copy_store.index, T.Index) or not isinstance(copy_value.index, T.Index):
+        return False, "copy_index_not_index", None, None, None
+    if not isinstance(overwrite_store.index, T.Index) or not isinstance(overwrite_value.index, T.Index):
+        return False, "overwrite_index_not_index", None, None, None
+
+    if len(copy_store.index.indices) != len(copy_value.index.indices):
+        return False, "copy_rank_mismatch", None, None, None
+    if len(overwrite_store.index.indices) != len(overwrite_value.index.indices):
+        return False, "overwrite_rank_mismatch", None, None, None
+
+    copy_dst = ast_to_lisp(copy_store.index, level=-1)
+    copy_src = ast_to_lisp(copy_value.index, level=-1)
+    if copy_dst != copy_src:
+        return False, f"copy_index_mismatch:{copy_dst}!={copy_src}", None, None, None
+
+    overwrite_const_dim = None
+    overwrite_const_tile = None
+    for dim, (dst_idx, src_idx) in enumerate(zip(overwrite_store.index.indices, overwrite_value.index.indices)):
+        if isinstance(dst_idx, T.ConstTile):
+            if overwrite_const_dim is not None:
+                return False, "multiple_const_tile_dims", None, None, None
+            if not isinstance(src_idx, T.FullTile):
+                return False, "const_tile_src_not_fulltile", None, None, None
+            overwrite_const_dim = dim
+            overwrite_const_tile = dst_idx
+            continue
+
+        if ast_to_lisp(dst_idx, level=-1) != ast_to_lisp(src_idx, level=-1):
+            return False, f"overwrite_index_mismatch_dim:{dim}", None, None, None
+
+    if overwrite_const_dim is None or overwrite_const_tile is None:
+        return False, "no_const_tile_dim", None, None, None
+
+    copy_src_name = copy_value.tensor.name
+    overwrite_src_name = overwrite_value.tensor.name
+    if copy_src_name == overwrite_src_name:
+        return False, "copy_and_overwrite_same_source", None, None, None
+
+    return (
+        True,
+        f"copy_then_const_tile_overwrite:base={copy_src_name},update={overwrite_src_name},"
+        f"dim={overwrite_const_dim},start={overwrite_const_tile.start_index},"
+        f"interval={overwrite_const_tile.interval}",
+        copy_src_name,
+        overwrite_src_name,
+        root.right,
+    )
+
+
+def _is_identity_call(call: T.PrimFuncCall) -> bool:
+    is_identity, _ = _analyze_identity_call(call)
+    return is_identity
 
 
 def _apply_tensor_alias(node: T.ASTNode, alias: dict[str, str]) -> T.ASTNode:
@@ -457,11 +541,40 @@ def _filter_identity_and_apply_alias_calls(
     filtered: List[T.PrimFuncCall] = []
     alias: dict[str, str] = {}
     for call in calls:
-        if _is_identity_call(call):
+        is_identity, reason = _analyze_identity_call(call)
+        if is_identity:
             src = call.input_tensors[0].name
             dst = call.out_var_tensor.name
+            if _IR_DEBUG:
+                print(f"[filter_identity] alias {dst} -> {src} ({call.primfunc.name}, call {call.call_index})")
             alias[dst] = alias.get(src, src)
             continue
+        scatter_like, scatter_reason, scatter_base, _, scatter_root = _analyze_copy_then_const_tile_overwrite_call(call)
+        if scatter_like:
+            resolved_base = alias.get(scatter_base, scatter_base) if scatter_base else None
+            if resolved_base and resolved_base.startswith("const_") and scatter_root is not None:
+                dst = call.out_var_tensor.name
+                if _IR_DEBUG:
+                    print(
+                        f"[filter_identity] alias {dst} -> {resolved_base} "
+                        f"({call.primfunc.name}, call {call.call_index}, scatter-base-keep-overwrite)"
+                    )
+                alias[dst] = resolved_base
+                filtered.append(_apply_alias_to_call(call, alias, root_override=scatter_root))
+                continue
+            if _IR_DEBUG:
+                print(
+                    f"[filter_identity] recognize {call.out_var_tensor.name} "
+                    f"({call.primfunc.name}, call {call.call_index}): {scatter_reason}"
+                )
+            filtered.append(_apply_alias_to_call(call, alias))
+            continue
+        if call.primfunc.name == "strided_slice":
+            if _IR_DEBUG:
+                print(
+                    f"[filter_identity] keep {call.out_var_tensor.name} "
+                    f"({call.primfunc.name}, call {call.call_index}): {reason}"
+                )
         filtered.append(_apply_alias_to_call(call, alias))
     return filtered, alias
 
