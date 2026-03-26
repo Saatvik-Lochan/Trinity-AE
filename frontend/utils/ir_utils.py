@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict, Tuple
 import ir.AST as T
 
-
 @dataclass
 class FusionGroup:
     call_indices: List[int]
@@ -248,6 +247,22 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
     axis_pool = list("ijklmnopqrstuvwxyz")
     axis_index = 0
 
+    def _collect_outermost_loop_var(root_node: T.ASTNode) -> Optional[str]:
+        node = root_node
+        while True:
+            if isinstance(node, T.Loop):
+                return _clean_var_name(node.loop_var)
+            if isinstance(node, T.Seq):
+                node = node.left
+                continue
+            if isinstance(node, T.Block) and node.stmts:
+                node = node.stmts[0]
+                continue
+            if isinstance(node, T.Let):
+                node = node.body
+                continue
+            return None
+
     def axis_access_map(patterns: dict[str, dict[str, set[str]]]) -> dict[str, dict[str, set[int]]]:
         access_map: dict[str, dict[str, set[int]]] = {}
         for axis, entry in patterns.items():
@@ -404,6 +419,7 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
         access_map = axis_access_map(patterns)
         range_map = axis_range_map(bound_primfunc.root_node)
         tile_map = axis_tile_map(bound_primfunc.root_node)
+        outermost_axis = _collect_outermost_loop_var(bound_primfunc.root_node)
 
         rename_map: dict[str, str] = {}
         loop_axes = _collect_loop_vars(bound_primfunc.root_node)
@@ -413,9 +429,14 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
             access = access_map.get(axis_key, {})
             axis_range = range_map.get(axis_key, (None, None))
             axis_tile = tile_map.get(axis_key)
+            axis_outer_count = 1 if outermost_axis == axis_key else 0
+            scored_candidates: list[
+                tuple[int, str, int, int, tuple[Optional[int], Optional[int]], Optional[str], dict[str, set[int]]]
+            ] = []
 
             best_idx = None
             best_score = -1
+            best_outer_score = -1
             for idx, group in enumerate(canonical_groups):
                 if axis_range not in group["ranges"]:
                     continue
@@ -425,8 +446,21 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                     continue
                 shared = set(access.keys()) & set(group["access"].keys())
                 score = len(shared)
-                if score > best_score:
+                outer_score = group.get("outer_count", 0)
+                scored_candidates.append(
+                    (
+                        idx,
+                        group["name"],
+                        score,
+                        outer_score,
+                        axis_range,
+                        axis_tile,
+                        access,
+                    )
+                )
+                if score > best_score or (score == best_score and outer_score > best_outer_score):
                     best_score = score
+                    best_outer_score = outer_score
                     best_idx = idx
 
             if best_idx is None:
@@ -438,6 +472,7 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                         "access": {k: set(v) for k, v in access.items()},
                         "ranges": {axis_range},
                         "tiles": {axis_tile},
+                        "outer_count": axis_outer_count,
                     }
                 )
                 rename_map[axis] = name
@@ -448,6 +483,7 @@ def normalize_main_func_axes(main_func: T.MainFunc) -> T.MainFunc:
                 rename_map[axis] = group["name"]
                 if axis_key != axis:
                     rename_map[axis_key] = group["name"]
+                group["outer_count"] = group.get("outer_count", 0) + axis_outer_count
                 for tensor, dims in access.items():
                     if tensor not in group["access"]:
                         group["access"][tensor] = set(dims)
@@ -1029,9 +1065,139 @@ def inline_shape_op_calls(main_func: T.MainFunc) -> T.MainFunc:
     def _has_tensor_load(node: T.ASTNode, tensor_name: str) -> bool:
         return tensor_name in _collect_load_tensor_names(node)
 
+    def _matmul_use_info(
+        node: T.ASTNode,
+        tensor_name: str,
+        in_matmul: bool = False,
+    ) -> tuple[bool, bool]:
+        if isinstance(node, T.Load) and node.tensor.name == tensor_name:
+            return True, in_matmul
+
+        next_in_matmul = in_matmul or isinstance(node, T.Matmul)
+
+        if isinstance(node, T.Store):
+            return _matmul_use_info(node.value, tensor_name, next_in_matmul)
+        if isinstance(node, T.Seq):
+            left_found, left_ok = _matmul_use_info(node.left, tensor_name, next_in_matmul)
+            right_found, right_ok = _matmul_use_info(node.right, tensor_name, next_in_matmul)
+            found = left_found or right_found
+            ok = (not left_found or left_ok) and (not right_found or right_ok)
+            return found, ok
+        if isinstance(node, T.Block):
+            found = False
+            ok = True
+            for stmt in node.stmts:
+                stmt_found, stmt_ok = _matmul_use_info(stmt, tensor_name, next_in_matmul)
+                found = found or stmt_found
+                ok = ok and (not stmt_found or stmt_ok)
+            return found, ok
+        if isinstance(node, T.Loop):
+            return _matmul_use_info(node.body, tensor_name, next_in_matmul)
+        if isinstance(node, T.If):
+            cond_found, cond_ok = _matmul_use_info(node.cond, tensor_name, next_in_matmul)
+            then_found, then_ok = _matmul_use_info(node.then_branch, tensor_name, next_in_matmul)
+            else_found, else_ok = (
+                _matmul_use_info(node.else_branch, tensor_name, next_in_matmul)
+                if node.else_branch
+                else (False, True)
+            )
+            found = cond_found or then_found or else_found
+            ok = (
+                (not cond_found or cond_ok)
+                and (not then_found or then_ok)
+                and (not else_found or else_ok)
+            )
+            return found, ok
+        if isinstance(node, T.Let):
+            value_found, value_ok = _matmul_use_info(node.value, tensor_name, next_in_matmul)
+            body_found, body_ok = _matmul_use_info(node.body, tensor_name, next_in_matmul)
+            found = value_found or body_found
+            ok = (not value_found or value_ok) and (not body_found or body_ok)
+            return found, ok
+
+        child_attrs = (
+            "left",
+            "right",
+            "val",
+            "a",
+            "b",
+            "data",
+            "indices",
+            "index",
+            "tensor",
+        )
+        found = False
+        ok = True
+        for attr in child_attrs:
+            child = getattr(node, attr, None)
+            if isinstance(child, T.ASTNode):
+                child_found, child_ok = _matmul_use_info(child, tensor_name, next_in_matmul)
+                found = found or child_found
+                ok = ok and (not child_found or child_ok)
+        if isinstance(node, T.GenericCall):
+            for arg in node.args:
+                arg_found, arg_ok = _matmul_use_info(arg, tensor_name, next_in_matmul)
+                found = found or arg_found
+                ok = ok and (not arg_found or arg_ok)
+        return found, ok
+
+    analyses = [_analyze_call_pattern(call) for call in calls]
+
+    def _can_inline_all_uses(idx: int) -> bool:
+        call = calls[idx]
+        if "concat" in call.primfunc.name:
+            return False
+        if _has_numeric_tile_name(call.primfunc.root_node):
+            return False
+        store = _extract_single_store(call.primfunc.root_node)
+        if store is None:
+            return False
+        out_name = store.tensor.name
+        if out_name != call.out_var_tensor.name:
+            return False
+        if out_name in output_names:
+            return False
+        op_info = _extract_inline_op(store)
+        if op_info is None:
+            return False
+
+        use_found = False
+        for j in range(idx + 1, len(calls)):
+            call_j = calls[j]
+            if not _has_tensor_load(call_j.primfunc.root_node, out_name):
+                continue
+            use_found = True
+            if op_info["op"] in {"permute3", "transpose"}:
+                found_in_matmul, only_in_matmul = _matmul_use_info(call_j.primfunc.root_node, out_name)
+                if not found_in_matmul or not only_in_matmul:
+                    return False
+            new_root = _inline_loads_with_op(call_j.primfunc.root_node, out_name, op_info)
+            if new_root == call_j.primfunc.root_node:
+                return False
+        return use_found
+
+    shape_family_indices: dict[str, list[int]] = {}
+    for idx, call in enumerate(calls):
+        store = _extract_single_store(call.primfunc.root_node)
+        if store is None:
+            continue
+        if _extract_inline_op(store) is None:
+            continue
+        shape_family_indices.setdefault(analyses[idx].signature, []).append(idx)
+
+    blocked_family_indices: set[int] = set()
+    for indices in shape_family_indices.values():
+        if len(indices) < 2:
+            continue
+        if any(not _can_inline_all_uses(idx) for idx in indices):
+            blocked_family_indices.update(indices)
+
     i = 0
     while i < len(calls) - 1:
         call = calls[i]
+        if i in blocked_family_indices:
+            i += 1
+            continue
         if "concat" in call.primfunc.name:
             i += 1
             continue
@@ -1067,6 +1233,10 @@ def inline_shape_op_calls(main_func: T.MainFunc) -> T.MainFunc:
             uses = _has_tensor_load(call_j.primfunc.root_node, out_name)
             if not uses:
                 continue
+            if op_info["op"] in {"permute3", "transpose"}:
+                found_in_matmul, only_in_matmul = _matmul_use_info(call_j.primfunc.root_node, out_name)
+                if not found_in_matmul or not only_in_matmul:
+                    continue
             new_root = _inline_loads_with_op(call_j.primfunc.root_node, out_name, op_info)
             if new_root == call_j.primfunc.root_node:
                 continue
@@ -1117,8 +1287,11 @@ def inline_shape_op_calls(main_func: T.MainFunc) -> T.MainFunc:
 
 def inline_elementwise_op_calls(main_func: T.MainFunc) -> T.MainFunc:
     """
-    Inline elementwise producer calls (add/sub/mul/div/exp/sigmoid/etc.)
+    Inline elementwise producer calls (add/sub/mul/div/sigmoid/etc.)
     into all consumers when indices match and output is used only via loads.
+
+    Exp producers are intentionally excluded to avoid duplicating expensive
+    elementwise work across multiple downstream consumers.
     """
     calls = list(main_func.calls)
     if len(calls) < 2:
@@ -1133,6 +1306,32 @@ def inline_elementwise_op_calls(main_func: T.MainFunc) -> T.MainFunc:
             return None
         store_index = store.index
         needed_inputs: set[str] = set()
+
+        def contains_exp(expr: T.ASTNode) -> bool:
+            if isinstance(expr, T.Exp):
+                return True
+            if isinstance(expr, (T.Add, T.Sub, T.Mul, T.Div, T.Max, T.Min, T.Matmul, T.GenericBinary)):
+                return contains_exp(expr.left) or contains_exp(expr.right)
+            if isinstance(expr, (T.Sqr, T.Sqrt, T.Sigmoid, T.Cast, T.Broadcast, T.ReduceSum, T.ReduceMax, T.ReduceMin, T.Squeeze, T.Unsqueeze, T.Permute3)):
+                return contains_exp(expr.val)
+            if isinstance(expr, T.Take):
+                return (
+                    contains_exp(expr.data)
+                    or contains_exp(expr.indices)
+                    or contains_exp(expr.index)
+                )
+            if isinstance(expr, T.Concat):
+                return contains_exp(expr.a) or contains_exp(expr.b)
+            if isinstance(expr, T.GenericCall):
+                return any(contains_exp(arg) for arg in expr.args)
+            if isinstance(expr, T.Load):
+                return False
+            if isinstance(expr, T.Const):
+                return False
+            return False
+
+        if contains_exp(store.value):
+            return None
 
         def visit(expr: T.ASTNode):
             if isinstance(expr, T.Load):
@@ -1357,6 +1556,99 @@ def inline_elementwise_op_calls(main_func: T.MainFunc) -> T.MainFunc:
     )
 
 
+def eliminate_dead_seq_stores(main_func: T.MainFunc) -> T.MainFunc:
+    """
+    Remove stores whose destination is never used later inside the same primfunc and
+    is not externally visible as a call output or an input-side-effect write.
+    """
+    updated_calls: list[T.PrimFuncCall] = []
+    all_used_tensors = {tensor.name for tensor in main_func.input_tensors}
+    all_used_tensors.update(tensor.name for tensor in main_func.output_tensors)
+
+    for call in main_func.calls:
+        preserved_writes = {call.out_var_tensor.name}
+        preserved_writes.update(tensor.name for tensor in call.input_tensors)
+        new_root = _eliminate_dead_stores_in_node(call.primfunc.root_node, preserved_writes)
+
+        load_names = _collect_load_tensor_names(new_root)
+        store_names = _collect_store_tensor_names(new_root)
+        needed_input_names = load_names | (store_names & {tensor.name for tensor in call.input_tensors})
+
+        updated_call = T.PrimFuncCall(
+            primfunc=dataclasses.replace(
+                call.primfunc,
+                root_node=new_root,
+                input_tensors=[tensor for tensor in call.primfunc.input_tensors if tensor.name in needed_input_names],
+                allocated_tensors=[tensor for tensor in call.primfunc.allocated_tensors if tensor.name in store_names],
+            ),
+            out_var_tensor=call.out_var_tensor,
+            input_tensors=[tensor for tensor in call.input_tensors if tensor.name in needed_input_names],
+            call_index=call.call_index,
+        )
+        updated_calls.append(updated_call)
+        all_used_tensors.update(load_names)
+        all_used_tensors.update(store_names)
+        all_used_tensors.add(call.out_var_tensor.name)
+
+    return T.MainFunc(
+        calls=updated_calls,
+        input_tensors=main_func.input_tensors,
+        output_tensors=main_func.output_tensors,
+        intermediate_tensors=[
+            tensor for tensor in main_func.intermediate_tensors if tensor.name in all_used_tensors
+        ],
+    )
+
+
+def eliminate_dead_calls(main_func: T.MainFunc) -> T.MainFunc:
+    """
+    Remove calls whose outputs do not contribute to final outputs and that do not
+    write back to observable input buffers.
+    """
+    live_tensors = {tensor.name for tensor in main_func.output_tensors}
+    input_names = {tensor.name for tensor in main_func.input_tensors}
+    kept_rev: list[T.PrimFuncCall] = []
+
+    for call in reversed(main_func.calls):
+        root = call.primfunc.root_node
+        out_name = call.out_var_tensor.name
+        store_names = _collect_store_tensor_names(root)
+        load_names = _collect_load_tensor_names(root)
+        writes_input = bool(store_names & input_names)
+        is_live = out_name in live_tensors or writes_input
+
+        if not is_live:
+            if _IR_DEBUG:
+                print(
+                    f"[dce] drop call {call.call_index} {call.primfunc.name}: "
+                    f"out={out_name}, reads={sorted(load_names)}, writes={sorted(store_names)}"
+                )
+            continue
+
+        kept_rev.append(call)
+        live_tensors.discard(out_name)
+        live_tensors.update(load_names)
+        live_tensors.update(store_names & input_names)
+
+    kept_calls = list(reversed(kept_rev))
+    kept_tensor_names = set(live_tensors)
+    kept_tensor_names.update(t.name for t in main_func.output_tensors)
+    kept_tensor_names.update(t.name for t in main_func.input_tensors)
+    for call in kept_calls:
+        kept_tensor_names.add(call.out_var_tensor.name)
+        kept_tensor_names.update(_collect_store_tensor_names(call.primfunc.root_node))
+        kept_tensor_names.update(_collect_load_tensor_names(call.primfunc.root_node))
+
+    return T.MainFunc(
+        calls=kept_calls,
+        input_tensors=main_func.input_tensors,
+        output_tensors=main_func.output_tensors,
+        intermediate_tensors=[
+            tensor for tensor in main_func.intermediate_tensors if tensor.name in kept_tensor_names
+        ],
+    )
+
+
 def _extract_single_store(node: T.ASTNode) -> T.Store | None:
     if isinstance(node, T.Store):
         return node
@@ -1369,6 +1661,79 @@ def _extract_single_store(node: T.ASTNode) -> T.Store | None:
             return None
         return _extract_single_store(node.stmts[0])
     return None
+
+
+def _eliminate_dead_stores_in_node(node: T.ASTNode, preserved_writes: set[str]) -> T.ASTNode:
+    pruned, _ = _eliminate_dead_stores_in_stmt(node, set(), preserved_writes)
+    if pruned is None:
+        return T.Block([])
+    return pruned
+
+
+def _eliminate_dead_stores_in_stmt(
+    node: T.ASTNode,
+    live_after: set[str],
+    preserved_writes: set[str],
+) -> tuple[T.ASTNode | None, set[str]]:
+    if isinstance(node, T.Store):
+        target = node.tensor.name
+        if target not in live_after and target not in preserved_writes:
+            return None, set(live_after)
+        live_before = set(live_after)
+        live_before.discard(target)
+        live_before.update(_collect_load_tensor_names(node.value))
+        return node, live_before
+
+    if isinstance(node, T.Seq):
+        right_node, right_live = _eliminate_dead_stores_in_stmt(node.right, live_after, preserved_writes)
+        left_node, left_live = _eliminate_dead_stores_in_stmt(node.left, right_live, preserved_writes)
+        if left_node is None:
+            return right_node, left_live
+        if right_node is None:
+            return left_node, left_live
+        return T.Seq(left_node, right_node), left_live
+
+    if isinstance(node, T.Block):
+        live_now = set(live_after)
+        kept: list[T.ASTNode] = []
+        for stmt in reversed(node.stmts):
+            new_stmt, live_now = _eliminate_dead_stores_in_stmt(stmt, live_now, preserved_writes)
+            if new_stmt is not None:
+                kept.append(new_stmt)
+        kept.reverse()
+        if not kept:
+            return None, live_now
+        if len(kept) == 1:
+            return kept[0], live_now
+        return T.Block(kept), live_now
+
+    if isinstance(node, T.Loop):
+        new_body, live_before = _eliminate_dead_stores_in_stmt(node.body, live_after, preserved_writes)
+        if new_body is None:
+            return None, set(live_after)
+        return T.Loop(node.start, node.end, node.tile_name, node.loop_var, new_body), live_before
+
+    if isinstance(node, T.If):
+        then_node, then_live = _eliminate_dead_stores_in_stmt(node.then_branch, live_after, preserved_writes)
+        else_node = None
+        else_live = set(live_after)
+        if node.else_branch is not None:
+            else_node, else_live = _eliminate_dead_stores_in_stmt(node.else_branch, live_after, preserved_writes)
+        if then_node is None and else_node is None:
+            return None, set(live_after)
+        live_before = set(then_live) | set(else_live)
+        live_before.update(_collect_load_tensor_names(node.cond))
+        return T.If(node.cond, then_node or T.Block([]), else_node), live_before
+
+    if isinstance(node, T.Let):
+        new_body, live_before = _eliminate_dead_stores_in_stmt(node.body, live_after, preserved_writes)
+        if new_body is None:
+            return None, set(live_after)
+        live_before = set(live_before)
+        live_before.update(_collect_load_tensor_names(node.value))
+        return T.Let(node.tensor, node.value, new_body), live_before
+
+    return node, set(live_after) | _collect_load_tensor_names(node)
 
 
 def _shape_only_base(node: T.ASTNode) -> T.Load | None:
@@ -1701,6 +2066,29 @@ def _calls_conflict(lhs: _CallPattern, rhs: _CallPattern) -> bool:
     )
 
 
+def _rw_tensors(pattern: _CallPattern) -> set[str]:
+    return pattern.reads | pattern.writes
+
+
+def _has_intervening_dependency_on_candidate(
+    analyses: List[_CallPattern],
+    left_idx: int,
+    right_idx: int,
+) -> bool:
+    if left_idx > right_idx:
+        left_idx, right_idx = right_idx, left_idx
+    candidate = analyses[right_idx]
+    candidate_reads = candidate.reads
+    candidate_writes = candidate.writes
+    for mid_idx in range(left_idx + 1, right_idx):
+        mid = analyses[mid_idx]
+        if mid.writes & (candidate_reads | candidate_writes):
+            return True
+        if mid.reads & candidate_writes:
+            return True
+    return False
+
+
 def plan_fusion_groups(main_func: T.MainFunc) -> List[FusionGroup]:
     calls = list(main_func.calls)
     if len(calls) < 2:
@@ -1708,18 +2096,46 @@ def plan_fusion_groups(main_func: T.MainFunc) -> List[FusionGroup]:
 
     analyses = [_analyze_call_pattern(call) for call in calls]
     groups: List[FusionGroup] = []
+    covered: set[int] = set()
     i = 0
     while i < len(calls):
+        if i in covered:
+            i += 1
+            continue
         base = analyses[i]
         run = [i]
         exact_slots = set(range(len(base.read_slots)))
         j = i + 1
         while j < len(calls):
+            if j in covered:
+                j += 1
+                continue
             cur = analyses[j]
             if cur.signature != base.signature:
-                break
+                if calls[i].primfunc.name == calls[j].primfunc.name:
+                    if _IR_DEBUG:
+                        print(
+                            f"[fusion] skip pair ({i},{j}) {calls[i].primfunc.name}: "
+                            "signature_mismatch"
+                        )
+                j += 1
+                continue
             if any(_calls_conflict(analyses[k], cur) for k in run):
-                break
+                if _IR_DEBUG:
+                    print(
+                        f"[fusion] skip pair ({run[-1]},{j}) {calls[j].primfunc.name}: "
+                        f"conflict reads={sorted(cur.reads)} writes={sorted(cur.writes)}"
+                    )
+                j += 1
+                continue
+            if any(_has_intervening_dependency_on_candidate(analyses, k, j) for k in run):
+                if _IR_DEBUG:
+                    print(
+                        f"[fusion] skip pair ({run[-1]},{j}) {calls[j].primfunc.name}: "
+                        "intervening_dependency"
+                    )
+                j += 1
+                continue
             next_exact = {
                 slot
                 for slot in exact_slots
@@ -1740,9 +2156,6 @@ def plan_fusion_groups(main_func: T.MainFunc) -> List[FusionGroup]:
                 slot: [analyses[idx].write_slots[slot] for idx in run]
                 for slot in range(len(base.write_slots))
             }
-            if not varying_read_slots:
-                i = j
-                continue
             groups.append(
                 FusionGroup(
                     call_indices=run,
@@ -1752,7 +2165,8 @@ def plan_fusion_groups(main_func: T.MainFunc) -> List[FusionGroup]:
                     write_slots=write_slots,
                 )
             )
-            i = j
+            covered.update(run)
+            i += 1
             continue
         i += 1
 
@@ -1770,8 +2184,6 @@ def validate_fusion_groups(main_func: T.MainFunc, groups: List[FusionGroup]) -> 
         if len(indices) < 2:
             errors.append("fusion group must contain at least two calls")
             continue
-        if indices != list(range(indices[0], indices[0] + len(indices))):
-            errors.append(f"fusion group is not contiguous: {indices}")
         if any(idx < 0 or idx >= len(calls) for idx in indices):
             errors.append(f"fusion group index out of range: {indices}")
             continue
@@ -1790,9 +2202,18 @@ def validate_fusion_groups(main_func: T.MainFunc, groups: List[FusionGroup]) -> 
             if _calls_conflict(base, cur):
                 errors.append(f"fusion group calls conflict: {indices}")
                 break
+            if _has_intervening_dependency_on_candidate(analyses, indices[0], idx):
+                errors.append(f"fusion group has intervening tensor overlap: {indices}")
+                break
 
-        if not group.varying_read_slots:
-            errors.append(f"fusion group has no varying inputs: {indices}")
+        for pos, left_idx in enumerate(indices):
+            for right_idx in indices[pos + 1 :]:
+                if _calls_conflict(analyses[left_idx], analyses[right_idx]):
+                    errors.append(f"fusion group calls conflict: {indices}")
+                    break
+                if _has_intervening_dependency_on_candidate(analyses, left_idx, right_idx):
+                    errors.append(f"fusion group has intervening tensor overlap: {indices}")
+                    break
 
         for slot, exact_name in group.exact_read_slots.items():
             for idx in indices:

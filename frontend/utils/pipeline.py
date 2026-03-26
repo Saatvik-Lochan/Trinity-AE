@@ -10,6 +10,8 @@ from core.to_ir import filter_identity_and_apply_alias
 from utils.io_utils import export_main_func
 from utils.ir_utils import (
     bind_main_func_calls,
+    eliminate_dead_calls,
+    eliminate_dead_seq_stores,
     inline_elementwise_op_calls,
     inline_shape_op_calls,
     normalize_main_func_axes,
@@ -47,7 +49,7 @@ def export_model_ir(
         if context is None:
             context = inferred
 
-    relax_mod = to_relax(model, example_inputs)
+    relax_mod, user_output_count = to_relax(model, example_inputs)
     tir_mod = to_tir(relax_mod)
 
     os.makedirs(f"{output_dir}/tvm", exist_ok=True)
@@ -64,15 +66,18 @@ def export_model_ir(
         remove_short_loop_threshold=remove_short_loop_threshold,
     )
 
-    main_func_ir = build_main_func(tir_mod, primfunc_nodes)
+    main_func_ir = build_main_func(tir_mod, primfunc_nodes, user_output_count=user_output_count)
     main_func_ir = sequentialize_main_func(main_func_ir)
     main_func_ir = bind_main_func_calls(main_func_ir)
     main_func_ir = normalize_main_func_axes(main_func_ir)
+    export_main_func(main_func_ir, output_dir, f"{basename}_pre_identity")
     main_func_ir = filter_identity_and_apply_alias(main_func_ir)
     if inline_shape_op:
         main_func_ir = inline_shape_op_calls(main_func_ir)
     if inline_elementwise_op:
         main_func_ir = inline_elementwise_op_calls(main_func_ir)
+    main_func_ir = eliminate_dead_seq_stores(main_func_ir)
+    main_func_ir = eliminate_dead_calls(main_func_ir)
 
     fusion_groups = plan_fusion_groups(main_func_ir)
     errors = validate_main_func_errors(main_func_ir, context=context or basename)

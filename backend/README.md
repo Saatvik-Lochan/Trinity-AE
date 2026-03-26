@@ -129,6 +129,7 @@ python run_eval.py [options]
 ### Examples
 
 ```bash
+<<<<<<< HEAD
 # Convert and benchmark llama vanilla attention with all baselines
 python run_eval.py --o 2 --m llama --t vanilla --n 946
 
@@ -177,3 +178,64 @@ python format.py --n 946 --m llama --t vanilla
 ```
 
 The formatted output will overwrite the original file at `results/{t}/{t}_{m}_case{n}.txt`.
+=======
+# Vanilla Attention (LLaMA)
+python -m backend.profile.benchmark \
+  --shapes backend/profile/shapes/vanilla_llama.json \
+  --ir backend/evaluation/vanilla/vanilla_llama_cost6_kern1.txt
+
+# Keyformer (Falcon)
+python -m backend.profile.benchmark \
+  --shapes backend/profile/shapes/keyformer_falcon.json \
+  --ir backend/evaluation/keyformer/keyformer_falcon_cost6_kern1.txt
+
+# FFN (LLaMA)
+python -m backend.profile.benchmark \
+  --shapes backend/profile/shapes/ffn_llama.json \
+  --ir backend/evaluation/ffn/llama_ffn_cost6_kern5_wo_scheduler2.txt
+```
+
+## shapes.json Format
+
+Both formats are supported:
+
+```json
+// Flat format (frontend-generated)
+{
+  "X": {"shape": [16, 4096], "type": "input"},
+  "O2": {"shape": [16, 4096], "type": "output"}
+}
+
+// Nested format (backend predefined)
+{
+  "config": {"M": 16, "N": 4096, "D": 128, "H": 32, "P": 1024},
+  "tensors": {
+    "X": {"shape": [16, 4096], "type": "input"},
+    "O2": {"shape": [16, 4096], "type": "output"}
+  }
+}
+```
+
+### Predefined Shapes (profile/shapes/)
+
+| File | Model | Description |
+|------|-------|-------------|
+| `vanilla_llama.json` | LLaMA 7B | Vanilla Attention |
+| `vanilla_falcon.json` | Falcon 7B | Vanilla Attention |
+| `keyformer_llama.json` | LLaMA 7B | Keyformer |
+| `keyformer_falcon.json` | Falcon 7B | Keyformer |
+| `roco_llama.json` | LLaMA 7B | RoCo |
+| `roco_falcon.json` | Falcon 7B | RoCo |
+| `qknorm_llama.json` | LLaMA 7B | QK Normalization |
+| `qknorm_falcon.json` | Falcon 7B | QK Normalization |
+| `prenorm_llama.json` | LLaMA 7B | Pre-normalization |
+| `prenorm_falcon.json` | Falcon 7B | Pre-normalization |
+| `ffn_llama.json` | LLaMA 7B | FFN Layer |
+| `ffn_falcon.json` | Falcon 7B | FFN Layer |
+
+### Tensor Types
+
+- `input`: Input tensors (random initialization)
+- `intermediate`: Intermediate tensors (zero initialization)
+- `output`: Output tensors (zero initialization)
+>>>>>>> origin/main

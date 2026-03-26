@@ -3,11 +3,11 @@
     (sloop 0 4544 tile_k k
       (store (tensor Q1,K1,V1)
         (+
-          (*
+          (@
             (load (input X) (index fulltile (tile k)))
             (load (input WQ,WK,WV) (index (tile k) (tile n)))
           )
-          (x
+          (*
             (load (tensor Q1,K1,V1) (index fulltile (tile n)))
             1
           )
@@ -59,7 +59,7 @@
                   (seq
                     (store (tensor C_exp)
                       (exp
-                        (*
+                        (@
                           (load (tensor Q_norm) (index (elem n) fulltile fulltile))
                           (permute3
                             (load (input K_cache) (index (elem n) (tile p) fulltile))
@@ -72,7 +72,7 @@
                     (seq
                       (store (tensor C_sum)
                         (+
-                          (x
+                          (*
                             (load (tensor C_sum) (index (elem n) fulltile))
                             1
                           )
@@ -85,11 +85,11 @@
                       )
                       (store (tensor O)
                         (+
-                          (*
+                          (@
                             (load (tensor C_exp) (index (elem n) fulltile (tile p)))
                             (load (input V_cache) (index (elem n) (tile p) fulltile))
                           )
-                          (x
+                          (*
                             (load (tensor O) (index (elem n) fulltile fulltile))
                             1
                           )

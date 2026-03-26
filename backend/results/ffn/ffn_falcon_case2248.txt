@@ -4,11 +4,11 @@
       (sloop 0 4544 tile_k k 
         (store (tensor attn_O1) 
           (+ 
-            (* 
+            (@ 
               (load (input O2) (index fulltile (tile k))) 
               (load (input WO) (index (tile k) (tile n)))
             ) 
-            (x 
+            (* 
               1 
               (load (tensor attn_O1) (index fulltile (tile n)))
             )
@@ -38,7 +38,7 @@
                   ) 
                   1
                 ) 
-                (x 
+                (* 
                   1 
                   (load (tensor attn_O3) (index fulltile))
                 )
@@ -48,11 +48,11 @@
             (seq 
               (store (tensor FF1a) 
                 (+ 
-                  (* 
+                  (@ 
                     (load (tensor attn_O2) (index fulltile (tile k))) 
                     (load (input WFF1a) (index (tile k) (tile p)))
                   ) 
-                  (x 
+                  (* 
                     1 
                     (load (tensor FF1a) (index fulltile (tile p)))
                   )
@@ -61,11 +61,11 @@
               ) 
               (store (tensor FF1b) 
                 (+ 
-                  (x 
+                  (* 
                     1 
                     (load (tensor FF1b) (index fulltile (tile p)))
                   ) 
-                  (* 
+                  (@ 
                     (load (tensor attn_O2) (index fulltile (tile k))) 
                     (load (input WFF1b) (index (tile k) (tile p)))
                   )
@@ -111,8 +111,8 @@
               ) 
               (seq dummy 
                 (store (tensor FF1) 
-                  (x 
-                    (x 
+                  (* 
+                    (* 
                       (sigmoid 
                         (load (tensor FF1b) (index fulltile (tile p)))
                       ) 
@@ -132,11 +132,11 @@
       (sloop 0 18176 tile_p p 
         (store (output FF2) 
           (+ 
-            (* 
+            (@ 
               (load (tensor FF1) (index fulltile (tile p))) 
               (load (input WFF2) (index (tile p) (tile n)))
             ) 
-            (x 
+            (* 
               (load (output FF2) (index fulltile (tile n))) 
               1
             )

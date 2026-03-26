@@ -16,12 +16,12 @@ IR transformation, and execution, focused on transformer-style models.
 
 ```bash
 conda env create -f environment.yml
-conda activate trinity_fe
+conda activate trinity
 ```
 
 If the environment already exists:
 ```bash
-conda activate tvm
+conda activate trinity
 ```
 
 ### 2. Verify installation
@@ -84,7 +84,7 @@ def build_model_and_inputs():
         "example_inputs": x,
         "inline_shape_op": True,
         "inline_elementwise_op": True,
-        "remove_short_loop_threshold": 64,
+        "remove_short_loop_threshold": 16,
         "decompose_nested_op_ratio": 0.3,
         # "basename": "my_model",
         # "context": "my_model",

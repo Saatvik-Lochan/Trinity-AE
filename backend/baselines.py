@@ -502,7 +502,9 @@ class TensorRT_Vanilla(nn.Module):
                 input_names=['X', 'cache_K', 'cache_V'],
                 output_names=['output'],
                 opset_version=13,
-                do_constant_folding=True
+                do_constant_folding=True,
+                dynamo=False,
+                external_data=False,
             )
             
             # Build TensorRT engine
@@ -664,7 +666,9 @@ class TensorRT_PreNorm(nn.Module):
                 input_names=['X', 'cache_K', 'cache_V'],
                 output_names=['output'],
                 opset_version=13,
-                do_constant_folding=True
+                do_constant_folding=True,
+                dynamo=False,
+                external_data=False,
             )
             
             # Build TensorRT engine
@@ -844,7 +848,9 @@ class TensorRT_KeyFormer(nn.Module):
                 input_names=['X', 'cache_K', 'cache_V'],
                 output_names=['output', 'perturb_out'],
                 opset_version=13,
-                do_constant_folding=True
+                do_constant_folding=True,
+                dynamo=False,
+                external_data=False,
             )
             
             # Build TensorRT engine
@@ -1025,7 +1031,9 @@ class TensorRT_QKNorm(nn.Module):
                 input_names=['X', 'cache_K', 'cache_V'],
                 output_names=['output'],
                 opset_version=13,
-                do_constant_folding=True
+                do_constant_folding=True,
+                dynamo=False,
+                external_data=False,
             )
             
             # Build TensorRT engine
@@ -1207,7 +1215,9 @@ class TensorRT_RoCo(nn.Module):
                 input_names=['X', 'cache_K', 'cache_V'],
                 output_names=['output', 'weights_sum', 'weights_sqr_sum'],
                 opset_version=13,
-                do_constant_folding=True
+                do_constant_folding=True,
+                dynamo=False,
+                external_data=False,
             )
             
             # Build TensorRT engine
@@ -1329,6 +1339,8 @@ class TensorRT_FFN(nn.Module):
                 output_names=['FF2'],
                 opset_version=13,
                 do_constant_folding=True,
+                dynamo=False,
+                external_data=False,
             )
 
             logger = trt.Logger(trt.Logger.WARNING)
