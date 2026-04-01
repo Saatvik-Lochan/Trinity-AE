@@ -8,6 +8,7 @@ Trinity is the first tensor program optimizer that achieves scalable joint optim
 
 ```
 Trinity-AE/
+├── frontend/       # PyTorch model → Trinity IR conversion (under debugging)
 ├── optimizer/      # Tile-level equality saturation (Rust)
 ├── backend/        # IR → Triton kernel generation & profiling
 ```
