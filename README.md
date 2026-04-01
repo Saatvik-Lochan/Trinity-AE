@@ -1,4 +1,4 @@
-# Trinity Project \[ASPLOS 2026\] (To appear)
+# Trinity Project \[ASPLOS 2026\]
 
 > Three-Dimensional Tensor Program Optimization via Tile-level Equality Saturation
 
@@ -8,15 +8,10 @@ Trinity is the first tensor program optimizer that achieves scalable joint optim
 
 ```
 Trinity-AE/
-├── frontend/       # PyTorch model → Trinity IR conversion
 ├── optimizer/      # Tile-level equality saturation (Rust)
 ├── backend/        # IR → Triton kernel generation & profiling
-├── trinity/        # End-to-end pipeline automation
-└── scripts/        # Model definitions & run example pipeline
 ```
 
 For detailed documentation, see the README in each directory:
-- [`scripts/`](scripts/README.md) — Setup, usage guide, API reference, and config options
-- [`frontend/`](frontend/README.md) — IR conversion details
 - [`optimizer/`](optimizer/README.md) — Equality saturation engine
 - [`backend/`](backend/README.md) — Triton code generation and profiling
