@@ -38,7 +38,7 @@ class IRBenchmark:
         self.shapes_path = shapes_path
 
         # Setup device
-        self.device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         torch.cuda.set_device(self.device)
         print(f"GPU: {torch.cuda.get_device_name(self.device)}")
         # if self.device.type != 'cuda':
