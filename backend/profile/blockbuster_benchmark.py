@@ -44,21 +44,9 @@ class BlockbusterBenchmark(LlamaBenchmark):
             "U": (self.N, self.K),
         }
 
-        self.shape_dict = {
-            "X": ("M", "D"),
-            "X_rowsum": ("M",),
-            "X_norm": ("M", "D"),
-            "W": ("K", "D"),
-            "V": ("K", "D"),
-            "FF1a": ("M", "K"),
-            "FF1b": ("M", "K"),
-            "FF1a_silu": ("M", "K"),
-            "FF1": ("M", "K"),
-            "O": ("M", "N"),
-            "U": ("N", "K"),
-        }
+        self.shape_dict = dict(self.tensor_shapes)
 
-        self.const_dict = tensor_config.copy()
+        self.const_dict = {}
 
         self.device = torch.device(f"cuda:{device}" if torch.cuda.is_available() else "cpu")
         torch.cuda.set_device(self.device)
@@ -234,7 +222,7 @@ def main():
     START_EXPRESSIONS = 0
     NUM_EXPRESSIONS = 10
     TOP_K = 5
-    TENSOR_CONFIGS = [{"M": 12800, "D": 576, "K": 1536, "N": 576}]
+    TENSOR_CONFIGS = [{"M": 128, "D": 576, "K": 1536, "N": 576}]
 
     parser = argparse.ArgumentParser(description="Run comprehensive Attacc IR benchmarks")
     parser.add_argument("--ir", type=str, default=IR_FILE, help="Path to the IR expressions file")
