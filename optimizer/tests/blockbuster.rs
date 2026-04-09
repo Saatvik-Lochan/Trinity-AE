@@ -34,7 +34,7 @@ fn blockbuster_extract_rms_ffn_swiglu_expressions() {
         ("FF1a_silu", vec![12800, 1536]),
         ("FF1", vec![12800, 1536]),
         ("O", vec![12800, 576]),
-        ("U", vec![576, 1536]),
+        ("U", vec![1536, 576]),
     ]);
     let expr = "
 (seq
@@ -127,7 +127,7 @@ fn blockbuster_extract_rms_ffn_swiglu_expressions() {
                     (x (load (output O) (index (fulltile) (tile n))) 1)
                     (*
                         (load (tensor FF1) (index (fulltile) (tile p)))
-                        (load (input U) (index (tile n) (tile p)))
+                        (load (input U) (index (tile p) (tile n)))
                     )
                 )
                 (index (fulltile) (tile n))

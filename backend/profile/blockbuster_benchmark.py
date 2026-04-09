@@ -41,7 +41,7 @@ class BlockbusterBenchmark(LlamaBenchmark):
             "FF1a_silu": (self.M, self.K),
             "FF1": (self.M, self.K),
             "O": (self.M, self.N),
-            "U": (self.N, self.K),
+            "U": (self.K, self.N),
         }
 
         self.shape_dict = dict(self.tensor_shapes)
